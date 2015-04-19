@@ -107,6 +107,8 @@ public class CurrentLocation extends Service implements LocationListener {
     protected void startLocationUpdates() {
 
         keepTrack = true;
+
+        getLocation();
     }
 
     /**
@@ -202,7 +204,7 @@ public class CurrentLocation extends Service implements LocationListener {
 
         Geocoder geocoder;
         List<Address> addresses = null;
-        geocoder = new Geocoder(this, Locale.getDefault());
+        geocoder = new Geocoder(mMainActivity, Locale.getDefault());
 
         try {
             addresses = geocoder.getFromLocation(loc.getLatitude(), loc.getLongitude(), 1);
