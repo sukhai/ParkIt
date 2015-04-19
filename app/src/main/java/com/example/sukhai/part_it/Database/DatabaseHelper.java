@@ -5,30 +5,31 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 /**
+ * A SQLite database helper class that manage database creation and version management.
+ *
  * Created by Su Khai Koh on 4/17/15.
  */
 public class DatabaseHelper extends SQLiteOpenHelper {
 
+    // Database information
     public static final String DATABASE_NAME = "database.db";
     public static final int DATABASE_VERSION = 1;
 
-    // Default last known location
+    // Default last known location address, latitude, and longitude
     public static final String DEFAULT_LOCATION_ADDRESS = "Union Square San Francisco, CA, 94108, United States";
-    public static final String DEFAULT_LOCATION_DELIMITER = "%";
     public static final double DEFAULT_LOCATION_LATITUDE = 37.7881;
     public static final double DEFAULT_LOCATION_LONGITUDE = -122.4075;
 
-    // Columns of the last known location table
+    // Columns and table of the last known location table
     public static final String TABLE_NAME_LOCATION = "Location";
     public static final String COLUMN_ID = "ID";
     public static final String COLUMN_LOCATION_ADDRESS = "Address";
     public static final String COLUMN_LOCATION_LATITUDE = "Latitude";
     public static final String COLUMN_LOCATION_LONGITUDE = "Longitude";
 
-    // Columns of the recent searched location table
+    // Columns and table of the recent searched location table
     public static final int RECENT_LOCATION_MAX_ENTRIES = 5;
     public static final String TABLE_NAME_RECENT = "Recent";
- //   public static final String COLUMN_RECENT_ID = "RecentId";
     public static final String COLUMN_RECENT_NAME = "Name";
     public static final String COLUMN_RECENT_ADDRESS = "Address";
     public static final String COLUMN_RECENT_PHONE = "Phone";
@@ -50,7 +51,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     COLUMN_LOCATION_LONGITUDE + REAL_TYPE +
                     " )";
 
-    // SQL statement of the last known location table removal
+    // SQL statement of the last known location table deletion
     private static final String SQL_DELETE_TABLE_LOCATION =
             DROP_TABLE + TABLE_NAME_LOCATION;
 
@@ -65,7 +66,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     COLUMN_RECENT_LONGITUDE + TEXT_TYPE + COMMA +
                     " )";
 
-    // SQL statement of the recent searched location table removal
+    // SQL statement of the recent searched location table deletion
     private static final String SQL_DELETE_TABLE_RECENT =
             DROP_TABLE + TABLE_NAME_RECENT;
 
@@ -77,9 +78,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         " ORDER BY " + COLUMN_ID + " DESC" +
                         " LIMIT -1 OFFSET " + RECENT_LOCATION_MAX_ENTRIES + ")";
 
-
-    private static final String LOCATION_SQL_DELETE_ENTRIES =
-            "DROP TABLE IF EXISTS " + TABLE_NAME_LOCATION;
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
