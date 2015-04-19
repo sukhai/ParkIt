@@ -1,5 +1,6 @@
 package com.example.sukhai.part_it;
 
+import android.location.Location;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -45,10 +46,13 @@ public class MainActivity extends ActionBarActivity implements
 
         buildGoogleApiClient();
 
-        mCurrentLocation = new CurrentLocation(this, mGoogleApiClient);
+        mCurrentLocation = new CurrentLocation(this);
     }
 
-    protected synchronized void buildGoogleApiClient() {
+    /**
+     * Build the Google API client.
+     */
+    private synchronized void buildGoogleApiClient() {
 
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addConnectionCallbacks(this)
@@ -62,10 +66,9 @@ public class MainActivity extends ActionBarActivity implements
         super.onResume();
 
         if (mGoogleApiClient != null) {
-            mGoogleApiClient.connect();
 
-            if (mCurrentLocation.mRequestingLocationUpdates)
-                mCurrentLocation.startLocationUpdates();
+            mGoogleApiClient.connect();
+            mCurrentLocation.startLocationUpdates();
         }
     }
 
@@ -74,6 +77,7 @@ public class MainActivity extends ActionBarActivity implements
         super.onPause();
 
         if (mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
+
             mCurrentLocation.stopLocationUpdates();
             mGoogleApiClient.disconnect();
         }
@@ -82,18 +86,15 @@ public class MainActivity extends ActionBarActivity implements
     @Override
     public void onConnected(Bundle dataBundle) {
 
-        if (servicesAvailable())
-            mCurrentLocation.onConnected(dataBundle);
+        trackDeviceLocation(null);
     }
 
     @Override
     public void onConnectionSuspended(int i) {
-
     }
 
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
-
     }
 
     @Override
@@ -118,10 +119,41 @@ public class MainActivity extends ActionBarActivity implements
         return super.onOptionsItemSelected(item);
     }
 
-    public void moveToCurrentLocation(View view) {
-        mCurrentLocation.moveToCurrentLocation(view);
+    /**
+     * Track device's current location. The GPS will keep track of the location of the device
+     * until somewhere on the map is clicked.
+     * @param view The view of the application
+     */
+    public void trackDeviceLocation(View view) {
+
+        // Start tracking
+        mCurrentLocation.startLocationUpdates();
+
+        // If the GPS is available, then get the current location of the device
+        if (mCurrentLocation.canGetLocation()) {
+
+            Location location = mCurrentLocation.getLocation();
+
+            if (location != null) {
+                placeMarkerOnMap(new LatLng(location.getLatitude(), location.getLongitude()));
+            }
+
+        } else {
+            // Otherwise just get the last known location that is stored in the database
+
+            String[] location = mCurrentLocation.getLastKnownLocation();
+
+            double latitude = Double.parseDouble(location[1]);
+            double longitude = Double.parseDouble(location[2]);
+
+            placeMarkerOnMap(new LatLng(latitude, longitude));
+        }
     }
 
+    /**
+     * Place a marker on the map on the specified latitude and longitude coordinate.
+     * @param point The latitude and longitude coordinate on the map
+     */
     public void placeMarkerOnMap(LatLng point) {
 
         Toast.makeText(getApplicationContext(), point.latitude + ", " + point.longitude, Toast.LENGTH_SHORT).show();
@@ -140,6 +172,8 @@ public class MainActivity extends ActionBarActivity implements
                 @Override
                 public void onMapClick(LatLng latLng) {
                     placeMarkerOnMap(latLng);
+
+                    mCurrentLocation.stopLocationUpdates();
                 }
             });
         }
@@ -150,11 +184,18 @@ public class MainActivity extends ActionBarActivity implements
                     .draggable(true)
                     .visible(true));
 
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mMarker.getPosition(), CAMERA_ZOOM_LEVEL));
+            // Move the camera to the marker
+            mMap.animateCamera(
+                    CameraUpdateFactory.newLatLngZoom(mMarker.getPosition(), CAMERA_ZOOM_LEVEL));
         }
     }
 
-    public boolean servicesAvailable() {
+    /**
+     * Check if the Google Play Service is available. Return true if the Google Play Service is
+     * available, otherwise false.
+     * @return true if the Google Play Service is available, otherwise false
+     */
+    private boolean servicesAvailable() {
 
         int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
 

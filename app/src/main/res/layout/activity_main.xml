@@ -27,6 +27,6 @@
         android:background="#00ffffff"
         android:layout_marginRight="15dp"
         android:layout_marginBottom="15dp"
-        android:onClick="moveToCurrentLocation" />
+        android:onClick="trackDeviceLocation" />
 
 </RelativeLayout>
