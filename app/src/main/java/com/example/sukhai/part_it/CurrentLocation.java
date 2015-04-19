@@ -2,61 +2,48 @@ package com.example.sukhai.part_it;
 
 import com.example.sukhai.part_it.Database.DatabaseHelper;
 import com.example.sukhai.part_it.Database.DatabaseManager;
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationListener;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
 
+import android.app.Service;
 import android.content.ContentValues;
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
-import android.view.View;
+import android.os.IBinder;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
+ * A class that represent the current location of the device.
+ *
  * Created by Su Khai Koh on 4/17/15.
  */
-public class CurrentLocation implements LocationListener,
-        GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener {
+public class CurrentLocation extends Service implements LocationListener {
 
-    static final long TIME_ONE_MIN = 1000 * 60;
-    static final long TIME_TWO_MIN = TIME_ONE_MIN * 2;
-    static final long TIME_FIVE_MIN = TIME_ONE_MIN * 5;
-    static final long FREQUENCY_POLLING = 1000 * 30;
-    static final long FREQUENCY_FASTEST_UPDATE = 1000 * 5;
-    static final float ACCURACY_MIN = 25.0f;
-    static final float ACCURACY_LAST_READ = 500.0f;
-    static final float CAMERA_ZOOM_LEVEL = 18f;
+    private static final long MIN_TIME = 1000 * 120;    // Min time to get location update, 1 minute
+    private static final long MIN_DISTANCE = 10;        // Min distance to get location update, 10 meters
 
-    private MainActivity mMainActivity;
-    private GoogleApiClient mGoogleApiClient;
-    private LocationRequest mLocationRequest;
+    private final MainActivity mMainActivity;
     private Location mLocation;
-    private DatabaseManager mDatabaseManager;
+    private LocationManager mLocationManager;
+    private boolean canGetLocation = false;             // Flag for GPS status
+    private boolean keepTrack = true;                   // Flag for keeping track on device's location
 
-    protected boolean mRequestingLocationUpdates;
-
-    public CurrentLocation(MainActivity mainActivity, GoogleApiClient googleApiClient) {
-
-        mRequestingLocationUpdates = true;
+    public CurrentLocation(MainActivity mainActivity) {
 
         mMainActivity = mainActivity;
-        mGoogleApiClient = googleApiClient;
 
-        mDatabaseManager = DatabaseManager.getInstance();
+        DatabaseManager mDatabaseManager = DatabaseManager.getInstance();
 
+        // If the location table is empty, then provide the default location as the first entry
         if (mDatabaseManager.isEmpty(DatabaseHelper.TABLE_NAME_LOCATION)) {
 
             Location location = new Location(DatabaseHelper.DEFAULT_LOCATION_ADDRESS);
@@ -65,130 +52,93 @@ public class CurrentLocation implements LocationListener,
 
             setLastKnownLocation(location);
         }
-
-        createLocationRequest();
     }
 
-    protected void createLocationRequest() {
+    /**
+     * Get the current location of the device. This method return the current location of the
+     * device if the GPS is enabled, otherwise return null.
+     * @return the current location of the device if the GPS is enabled, otherwise null
+     */
+    public Location getLocation() {
 
-        mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(FREQUENCY_POLLING);
-        mLocationRequest.setFastestInterval(FREQUENCY_FASTEST_UPDATE);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-    }
+        try {
+            // Get the location service
+            mLocationManager = (LocationManager) mMainActivity.getSystemService(LOCATION_SERVICE);
 
-    @Override
-    public void onLocationChanged(Location location) {
+            // Check whether the GPS is enabled on the device
+            boolean GPSEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
 
-        // Determine whether the new location is better than the current best estimate
-        if (mLocation == null || mLocation.getAccuracy() > location.getAccuracy()) {
+            if (GPSEnabled && keepTrack) {
 
-            mLocation = location;
+                canGetLocation = true;
 
-            mMainActivity.placeMarkerOnMap(new LatLng(location.getLatitude(), location.getLongitude()));
+                mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+                        MIN_TIME, MIN_DISTANCE, this);
 
-            setLastKnownLocation(mLocation);
+                if (mLocationManager != null) {
+                    mLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
-            if (mLocation.getAccuracy() < ACCURACY_MIN) {
-                LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
-            }
-        }
-    }
+                    if (mLocation != null) {
+                        // Draw on the map
+                        mMainActivity.placeMarkerOnMap(
+                                new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
 
-    @Override
-    public void onConnected(Bundle bundle) {
-
-        boolean locationAvailable = false;
-
-        // Get first reading. Get additional location updates if necessary
-        if (mRequestingLocationUpdates && mMainActivity.servicesAvailable()) {
-            // Get best last location measurement meeting criteria
-            mLocation = bestLastKnownLocation(ACCURACY_LAST_READ, TIME_FIVE_MIN);
-
-            if (mLocation == null
-                    || mLocation.getAccuracy() > ACCURACY_LAST_READ
-                    || mLocation.getTime() < System.currentTimeMillis() - TIME_TWO_MIN) {
-
-                startLocationUpdates();
-
-                // Schedule a runnable to unregister location listeners
-                Executors.newScheduledThreadPool(1).schedule(new Runnable() {
-
-                    @Override
-                    public void run() {
-                        stopLocationUpdates();
+                        // Save to database
+                        setLastKnownLocation(mLocation);
                     }
+                }
 
-                }, TIME_ONE_MIN, TimeUnit.MILLISECONDS);
+            } else {
+
+                canGetLocation = false;
             }
 
-            // Place a marker on the map and store the new location if we have one
-            if (mLocation != null) {
-                mMainActivity.placeMarkerOnMap(new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
-                locationAvailable = true;
-
-                setLastKnownLocation(mLocation);
-            }
+        } catch (Exception ex) {
+            // Do nothing
         }
 
-        if (!locationAvailable) {
-            moveToCurrentLocation(null);
-        }
+        return mLocation;
     }
 
-    @Override
-    public void onConnectionSuspended(int i) {
-
-    }
-
-    @Override
-    public void onConnectionFailed(ConnectionResult connectionResult) {
-
-    }
-
+    /**
+     * Start the location updates. The location updates will only start and work if the GPS is
+     * enabled.
+     */
     protected void startLocationUpdates() {
 
-        if (mGoogleApiClient.isConnected())
-            LocationServices.FusedLocationApi.requestLocationUpdates(
-                    mGoogleApiClient, mLocationRequest, this);
+        keepTrack = true;
     }
 
+    /**
+     * Stop the location updates.
+     */
     protected void stopLocationUpdates() {
 
-        LocationServices.FusedLocationApi.removeLocationUpdates(
-                mGoogleApiClient, this);
-    }
+        keepTrack = false;
 
-    public void moveToCurrentLocation(View view) {
-
-        System.out.println("in move to current location");
-
-        Location mLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-
-        if (mLocation != null) {
-
-            mMainActivity.placeMarkerOnMap(new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
-
-            System.out.println("mLocation is not null");
-
-            setLastKnownLocation(mLocation);
-
-        } else {
-
-            System.out.println("mLocation is null");
-
-            String[] location = getLastKnownLocation();
-
-            double latitude = Double.parseDouble(location[1]);
-            double longitude = Double.parseDouble(location[2]);
-
-            mMainActivity.placeMarkerOnMap(new LatLng(latitude, longitude));
+        if (mLocationManager != null) {
+            mLocationManager.removeUpdates(this);
         }
     }
 
+    /**
+     * Check whether the GPS is enabled and can get the current location of the device.
+     * @return true if the GPS is enabled and it is ready to get the current location of the
+     *         device, otherwise false.
+     */
+    public boolean canGetLocation() {
+        return canGetLocation;
+    }
+
+    /**
+     * Set the last known location of the device to the database Location table. The Location
+     * table is only limited to one record. Therefore the given location will always replace
+     * the old location in the database.
+     * @param loc the new location to be inserted into the database Location table
+     */
     public synchronized void setLastKnownLocation(Location loc) {
 
-        SQLiteDatabase db = mDatabaseManager.getInstance().open();
+        SQLiteDatabase db = DatabaseManager.getInstance().open();
 
         // Delete all entries
         db.delete(DatabaseHelper.TABLE_NAME_LOCATION, null, null);
@@ -204,6 +154,11 @@ public class CurrentLocation implements LocationListener,
         DatabaseManager.getInstance().close();
     }
 
+    /**
+     * Get the last known location from the database Location table.
+     * @return the last known location saved on the database Location table if the table has any
+     *         records in it, otherwise return the default location
+     */
     public String[] getLastKnownLocation() {
 
         SQLiteDatabase db = DatabaseManager.getInstance().open();
@@ -234,45 +189,20 @@ public class CurrentLocation implements LocationListener,
         return location;
     }
 
-    private Location bestLastKnownLocation(float minAccuracy, long minTime) {
-
-        Location bestResult = null;
-        float bestAccuracy = Float.MAX_VALUE;
-        long bestTime = Long.MIN_VALUE;
-
-        // Get the best most recent location currently available
-        Location currentLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-
-        if (currentLocation != null) {
-            float accuracy = currentLocation.getAccuracy();
-            long time = currentLocation.getTime();
-
-            if (accuracy < bestAccuracy) {
-                bestResult = currentLocation;
-                bestAccuracy = accuracy;
-                bestTime = time;
-            }
-        }
-
-        // Return best reading or null
-        if (bestAccuracy > minAccuracy || bestTime < minTime) {
-            return null;
-        }
-        else {
-
-            setLastKnownLocation(bestResult);
-
-            return bestResult;
-        }
-    }
-
+    /**
+     * Get the address from the given location. The result string consist of address, city, state,
+     * postal code, and country name with each separated by a comma.
+     * @param loc location
+     * @return a string that consist of address, city, state, postal code, and country name with
+     *         each separated by a comma
+     */
     private String getAddress(Location loc) {
 
         String addr = "";
 
         Geocoder geocoder;
         List<Address> addresses = null;
-        geocoder = new Geocoder(mMainActivity, Locale.getDefault());
+        geocoder = new Geocoder(this, Locale.getDefault());
 
         try {
             addresses = geocoder.getFromLocation(loc.getLatitude(), loc.getLongitude(), 1);
@@ -292,6 +222,11 @@ public class CurrentLocation implements LocationListener,
         return addr;
     }
 
+    /**
+     * Get the city name from the given address.
+     * @param address the address
+     * @return the city name from the given address
+     */
     private String getCity(String address) {
 
         String addr = address;
@@ -307,5 +242,39 @@ public class CurrentLocation implements LocationListener,
         }
 
         return addr;
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+
+        if (keepTrack) {
+            mLocation = location;
+
+            // Draw on map
+            mMainActivity.placeMarkerOnMap(new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
+
+            // Save to database
+            setLastKnownLocation(mLocation);
+        }
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+
+    }
+
+    @Override
+    public void onProviderEnabled(String provider) {
+
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
     }
 }
