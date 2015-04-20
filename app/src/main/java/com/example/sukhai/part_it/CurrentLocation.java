@@ -16,6 +16,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.util.List;
@@ -117,6 +118,15 @@ public class CurrentLocation extends Service implements LocationListener {
                             setLastKnownLocation(mLocation);
                         }
                     }
+                }
+
+                // If network or GPS is available but unable to get the location, then display
+                // a message to indicate it is waiting for location
+                if (mLocation == null) {
+                    Toast.makeText(mMainActivity,
+                            "Waiting for location ...",
+                            Toast.LENGTH_SHORT)
+                            .show();
                 }
 
             }
