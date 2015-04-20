@@ -1,5 +1,6 @@
 package com.example.sukhai.part_it;
 
+import android.graphics.Color;
 import android.location.Location;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -16,6 +17,8 @@ import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -132,14 +135,21 @@ public class MainActivity extends ActionBarActivity implements
         // If the GPS is available, then get the current location of the device
         if (mCurrentLocation.canGetLocation()) {
 
+            System.err.println("Can get location");
+
             Location location = mCurrentLocation.getLocation();
 
             if (location != null) {
+
+                System.out.println("Can get location and placing marker");
+
                 placeMarkerOnMap(new LatLng(location.getLatitude(), location.getLongitude()));
             }
 
         } else {
             // Otherwise just get the last known location that is stored in the database
+
+            System.err.println("Can not get location and placing last known location marker");
 
             String[] location = mCurrentLocation.getLastKnownLocation();
 
@@ -157,6 +167,8 @@ public class MainActivity extends ActionBarActivity implements
     public void placeMarkerOnMap(LatLng point) {
 
         Toast.makeText(getApplicationContext(), point.latitude + ", " + point.longitude, Toast.LENGTH_SHORT).show();
+
+
 
         if (mMarker != null) {
             mMarker.remove();
@@ -187,6 +199,24 @@ public class MainActivity extends ActionBarActivity implements
             // Move the camera to the marker
             mMap.animateCamera(
                     CameraUpdateFactory.newLatLngZoom(mMarker.getPosition(), CAMERA_ZOOM_LEVEL));
+
+
+
+
+
+            // Instantiates a new CircleOptions object and defines the center and radius
+            CircleOptions circleOptions = new CircleOptions()
+                    .center(point)
+                    .radius(1)
+                    .strokeColor(Color.GREEN)
+                    .fillColor(Color.GREEN); // In meters
+
+            // Get back the mutable Circle
+            Circle circle = mMap.addCircle(circleOptions);
+
+            mMap.clear();
+            mMap.addCircle(circleOptions);
+
         }
     }
 

@@ -28,13 +28,13 @@ import java.util.Locale;
  */
 public class CurrentLocation extends Service implements LocationListener {
 
-    private static final long MIN_TIME = 1000 * 120;    // Min time to get location update, 1 minute
-    private static final long MIN_DISTANCE = 10;        // Min distance to get location update, 10 meters
+    private static final long MIN_TIME = 1000 * 10;     // Min time to get location update, 10 seconds
+    private static final long MIN_DISTANCE = 5;         // Min distance to get location update, 5 meters
 
     private final MainActivity mMainActivity;
     private Location mLocation;
     private LocationManager mLocationManager;
-    private boolean canGetLocation = false;             // Flag for GPS status
+    private boolean canGetLocation = false;             // Flag for network and GPS status
     private boolean keepTrack = true;                   // Flag for keeping track on device's location
 
     public CurrentLocation(MainActivity mainActivity) {
@@ -52,12 +52,14 @@ public class CurrentLocation extends Service implements LocationListener {
 
             setLastKnownLocation(location);
         }
+
+        getLocation();
     }
 
     /**
      * Get the current location of the device. This method return the current location of the
-     * device if the GPS is enabled, otherwise return null.
-     * @return the current location of the device if the GPS is enabled, otherwise null
+     * device if the network or GPS is enabled, otherwise return null.
+     * @return the current location of the device if the network or GPS is enabled, otherwise null
      */
     public Location getLocation() {
 
@@ -65,32 +67,58 @@ public class CurrentLocation extends Service implements LocationListener {
             // Get the location service
             mLocationManager = (LocationManager) mMainActivity.getSystemService(LOCATION_SERVICE);
 
+            // Check whether the network is enabled on the device
+            boolean networkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
             // Check whether the GPS is enabled on the device
             boolean GPSEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
 
-            if (GPSEnabled && keepTrack) {
+            if ((GPSEnabled || networkEnabled) && keepTrack) {
 
                 canGetLocation = true;
 
-                mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
-                        MIN_TIME, MIN_DISTANCE, this);
+                // If the network is enabled, then get the network location
+                if (networkEnabled) {
 
-                if (mLocationManager != null) {
-                    mLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                    mLocationManager.requestLocationUpdates(
+                            LocationManager.NETWORK_PROVIDER,
+                            MIN_TIME, MIN_DISTANCE, this);
 
-                    if (mLocation != null) {
-                        // Draw on the map
-                        mMainActivity.placeMarkerOnMap(
-                                new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
+                    if (mLocationManager != null) {
+                        mLocation = mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
 
-                        // Save to database
-                        setLastKnownLocation(mLocation);
+                        // Draw the current location on the map and save the coordinate to database
+                        if (mLocation != null) {
+
+                            mMainActivity.placeMarkerOnMap(
+                                    new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
+
+                            setLastKnownLocation(mLocation);
+                        }
                     }
                 }
 
-            } else {
+                // If GPS is also enabled, then get the GPS location
+                if (GPSEnabled) {
 
-                canGetLocation = false;
+                    mLocationManager.requestLocationUpdates(
+                            LocationManager.GPS_PROVIDER,
+                            MIN_TIME, MIN_DISTANCE, this);
+
+                    if (mLocationManager != null) {
+                        mLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
+                        // Draw the current location on the map and save the coordinate to database
+                        if (mLocation != null) {
+
+                            mMainActivity.placeMarkerOnMap(
+                                    new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
+
+                            setLastKnownLocation(mLocation);
+                        }
+                    }
+                }
+
             }
 
         } catch (Exception ex) {
@@ -101,8 +129,8 @@ public class CurrentLocation extends Service implements LocationListener {
     }
 
     /**
-     * Start the location updates. The location updates will only start and work if the GPS is
-     * enabled.
+     * Start the location updates. The location updates will only start and work if the network or
+     * GPS is enabled.
      */
     protected void startLocationUpdates() {
 
@@ -124,11 +152,12 @@ public class CurrentLocation extends Service implements LocationListener {
     }
 
     /**
-     * Check whether the GPS is enabled and can get the current location of the device.
+     * Check whether the network or GPS is enabled and can get the current location of the device.
      * @return true if the GPS is enabled and it is ready to get the current location of the
      *         device, otherwise false.
      */
     public boolean canGetLocation() {
+
         return canGetLocation;
     }
 
@@ -250,6 +279,7 @@ public class CurrentLocation extends Service implements LocationListener {
     public void onLocationChanged(Location location) {
 
         if (keepTrack) {
+
             mLocation = location;
 
             // Draw on map
@@ -267,7 +297,7 @@ public class CurrentLocation extends Service implements LocationListener {
 
     @Override
     public void onProviderEnabled(String provider) {
-
+        canGetLocation = true;
     }
 
     @Override
