@@ -1,7 +1,7 @@
-package com.example.sukhai.part_it;
+package com.csc413.group9.parkIt;
 
-import com.example.sukhai.part_it.Database.DatabaseHelper;
-import com.example.sukhai.part_it.Database.DatabaseManager;
+import com.csc413.group9.parkIt.Database.DatabaseHelper;
+import com.csc413.group9.parkIt.Database.DatabaseManager;
 import com.google.android.gms.maps.model.LatLng;
 
 import android.app.Service;

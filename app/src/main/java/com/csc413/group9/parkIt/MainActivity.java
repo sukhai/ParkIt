@@ -1,4 +1,4 @@
-package com.example.sukhai.part_it;
+package com.csc413.group9.parkIt;
 
 import android.content.Context;
 import android.graphics.Color;
@@ -14,7 +14,9 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 
-import com.example.sukhai.part_it.Database.DatabaseManager;
+import com.csc413.group9.parkIt.Database.DatabaseManager;
+import com.csc413.group9.parkIt.SFPark.ParkingInformation;
+import com.csc413.group9.parkIt.R;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -22,7 +24,6 @@ import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -39,6 +40,7 @@ public class MainActivity extends ActionBarActivity implements
     private GoogleMap mMap;
     private Marker mMarker;
     private GoogleApiClient mGoogleApiClient;
+    private ParkingInformation mParkingInfo;
     private CurrentLocation mCurrentLocation;
     private SensorManager mSensorManager;
     private float mMarkerRotation;
@@ -59,7 +61,11 @@ public class MainActivity extends ActionBarActivity implements
         buildGoogleApiClient();
         buildSensorManager();
 
+        mParkingInfo = new ParkingInformation(this);
         mCurrentLocation = new CurrentLocation(this);
+
+
+
     }
 
     /**
@@ -164,6 +170,8 @@ public class MainActivity extends ActionBarActivity implements
      * @param view The view of the application
      */
     public void trackDeviceLocation(View view) {
+
+        mParkingInfo.getData(37.729f, -122.479f, "", ParkingInformation.PRICE_ON);
 
         // Start tracking
         mCurrentLocation.startLocationUpdates();

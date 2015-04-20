@@ -1,4 +1,4 @@
-package com.example.sukhai.part_it;
+package com.example.sukhai.parkIt;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;

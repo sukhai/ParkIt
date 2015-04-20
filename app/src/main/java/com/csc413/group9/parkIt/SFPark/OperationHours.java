@@ -1,4 +1,4 @@
-package com.example.sukhai.part_it.SFPark;
+package com.csc413.group9.parkIt.SFPark;
 
 /**
  * Created by kelvin on 4/20/15.

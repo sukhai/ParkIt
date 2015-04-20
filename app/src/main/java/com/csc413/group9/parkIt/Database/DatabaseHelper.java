@@ -1,4 +1,4 @@
-package com.example.sukhai.part_it.Database;
+package com.csc413.group9.parkIt.Database;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;

@@ -1,7 +1,9 @@
-package com.example.sukhai.part_it.SFPark;
+package com.csc413.group9.parkIt.SFPark;
 
 import android.content.Context;
+import android.os.AsyncTask;
 import android.text.format.DateUtils;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.Marker;
@@ -11,8 +13,6 @@ import org.apache.http.HeaderElement;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpResponseInterceptor;
-import org.apache.http.StatusLine;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.entity.HttpEntityWrapper;
 import org.apache.http.impl.client.BasicResponseHandler;
@@ -24,13 +24,9 @@ import org.apache.http.protocol.HttpContext;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.zip.GZIPInputStream;
 
@@ -143,52 +139,8 @@ public class ParkingInformation {
         }
     }
 
-    private String getURIContent(String uri) {
+    private String getURIContent(String uri) throws Exception {
 
-        /*
-        StringBuilder builder = new StringBuilder();
-        HttpClient client = new DefaultHttpClient();
-        HttpGet httpGet = new HttpGet(uri);
-
-        try {
-            HttpResponse response = client.execute(httpGet);
-            StatusLine statusLine = response.getStatusLine();
-            int statusCode = statusLine.getStatusCode();
-            if(statusCode == 200){
-                HttpEntity entity = response.getEntity();
-                InputStream content = entity.getContent();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(content));
-                String line;
-                while((line = reader.readLine()) != null){
-                    builder.append(line);
-                }
-            } else {
-                // failed
-            }
-
-        } catch(Exception ex) {
-            ex.printStackTrace();
-        }
-
-        return builder.toString();
-
-
-
-        Thread thread = new Thread(new Runnable(){
-            @Override
-            public void run() {
-                try {
-                    //Your code goes here
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-
-        thread.start();
-        */
-
-        /*
         try {
             request = new HttpGet();
             request.setURI(new URI(uri));
@@ -220,57 +172,11 @@ public class ParkingInformation {
                 }
             });
 
-            Thread thread = new Thread(new Runnable(){
-                @Override
-                public void run() {
-                    try {
+            return client.execute(request, new BasicResponseHandler());
 
-                        responseString = client.execute(request, new BasicResponseHandler());
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            });
-
-            thread.start();
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-
-        */
-
-        BufferedReader reader = null;
-
-        try {
-            URL url = new URL(uri);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
-            StringBuilder sb = new StringBuilder();
-            reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-
-            String line;
-            while ((line = reader.readLine()) != null)
-                sb.append(line);
-
-            return sb.toString();
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
         } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    return null;
-                }
-            }
+
         }
-
-
-        return "";
-
     }
 
     private void initializeArrays() {
@@ -284,6 +190,37 @@ public class ParkingInformation {
             offStreetParkings = new ArrayList<SpaceAvailable>();
         else
             offStreetParkings.clear();
+    }
+
+    private class LoadDataTask extends AsyncTask<String, Void, Void> {
+
+        protected void onPreExecute() {
+            Toast.makeText(mContext,
+                    "Waiting for location ...",
+                    Toast.LENGTH_SHORT)
+                    .show();
+        }
+
+        protected Void doInBackground(String... urls) {
+          //  loadData();
+            return null;
+        }
+
+        protected void onPostExecute(Void unused) {
+            /*
+            try {
+                pd.setMessage("Reading data..");
+                readData();
+                pd.setMessage("Displaying data..");
+                displayData(false);
+                pd.dismiss();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } catch (NullPointerException npe) {
+                // this can happen if activity finished.  ignore.
+            }
+            */
+        }
     }
 
     private static class InflatingEntity extends HttpEntityWrapper {
