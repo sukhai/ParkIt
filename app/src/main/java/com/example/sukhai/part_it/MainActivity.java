@@ -1,6 +1,11 @@
 package com.example.sukhai.part_it;
 
+import android.content.Context;
 import android.graphics.Color;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -17,6 +22,7 @@ import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -25,7 +31,8 @@ import com.google.android.gms.maps.model.MarkerOptions;
 
 public class MainActivity extends ActionBarActivity implements
         GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener {
+        GoogleApiClient.OnConnectionFailedListener,
+        SensorEventListener {
 
     private static final float CAMERA_ZOOM_LEVEL = 18f;
 
@@ -33,6 +40,8 @@ public class MainActivity extends ActionBarActivity implements
     private Marker mMarker;
     private GoogleApiClient mGoogleApiClient;
     private CurrentLocation mCurrentLocation;
+    private SensorManager mSensorManager;
+    private float mMarkerRotation;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +57,7 @@ public class MainActivity extends ActionBarActivity implements
         DatabaseManager.initializeInstance(this);
 
         buildGoogleApiClient();
+        buildSensorManager();
 
         mCurrentLocation = new CurrentLocation(this);
     }
@@ -62,6 +72,17 @@ public class MainActivity extends ActionBarActivity implements
                 .addOnConnectionFailedListener(this)
                 .addApi(LocationServices.API)
                 .build();
+    }
+
+    /**
+     * Build and initialize the SensorManager.
+     */
+    private synchronized void buildSensorManager() {
+
+        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+                SensorManager.SENSOR_DELAY_NORMAL);
     }
 
     @Override
@@ -122,6 +143,21 @@ public class MainActivity extends ActionBarActivity implements
         return super.onOptionsItemSelected(item);
     }
 
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+
+        mMarkerRotation = event.values[0] - 170.0f;
+
+        if (mMarker != null) {
+            mMarker.setRotation(mMarkerRotation);
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+    }
+
     /**
      * Track device's current location. The GPS will keep track of the location of the device
      * until somewhere on the map is clicked.
@@ -135,21 +171,14 @@ public class MainActivity extends ActionBarActivity implements
         // If the GPS is available, then get the current location of the device
         if (mCurrentLocation.canGetLocation()) {
 
-            System.err.println("Can get location");
-
             Location location = mCurrentLocation.getLocation();
 
             if (location != null) {
-
-                System.out.println("Can get location and placing marker");
-
                 placeMarkerOnMap(new LatLng(location.getLatitude(), location.getLongitude()));
             }
 
         } else {
             // Otherwise just get the last known location that is stored in the database
-
-            System.err.println("Can not get location and placing last known location marker");
 
             String[] location = mCurrentLocation.getLastKnownLocation();
 
@@ -166,6 +195,7 @@ public class MainActivity extends ActionBarActivity implements
      */
     public void placeMarkerOnMap(LatLng point) {
 
+        // For testing purpose
         Toast.makeText(getApplicationContext(), point.latitude + ", " + point.longitude, Toast.LENGTH_SHORT).show();
 
 
@@ -193,7 +223,9 @@ public class MainActivity extends ActionBarActivity implements
         if (mMap != null) {
             mMarker = mMap.addMarker(new MarkerOptions()
                     .position(new LatLng(point.latitude, point.longitude))
-                    .draggable(true)
+                    .flat(true)
+                    .anchor(0.5f, 0.5f)
+                    .rotation(mMarkerRotation)
                     .visible(true));
 
             // Move the camera to the marker
@@ -203,6 +235,8 @@ public class MainActivity extends ActionBarActivity implements
 
 
 
+
+            // For testing purpose
 
             // Instantiates a new CircleOptions object and defines the center and radius
             CircleOptions circleOptions = new CircleOptions()
@@ -214,8 +248,8 @@ public class MainActivity extends ActionBarActivity implements
             // Get back the mutable Circle
             Circle circle = mMap.addCircle(circleOptions);
 
-            mMap.clear();
-            mMap.addCircle(circleOptions);
+   //         mMap.clear();
+   //         mMap.addCircle(circleOptions);
 
         }
     }
