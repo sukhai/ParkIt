@@ -7,6 +7,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
+ * Represent a parking location on the map. This parking location may or may not have the
+ * information like type of parking (on/off street), name of parking location, description,
+ * phone number, latitude, longitude, operation hours schedule, and/or rate schedule.
  *
  * Created by Su Khai Koh on 4/20/15.
  */
