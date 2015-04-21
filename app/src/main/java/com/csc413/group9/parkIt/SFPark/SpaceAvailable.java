@@ -132,8 +132,6 @@ public class SpaceAvailable {
 
             if (item instanceof JSONArray)
             {
-                JSONArray urlArray = (JSONArray) item;
-
                 JSONArray operationSchedules = (JSONArray) item;
 
                 oHours = new OperationHours[operationSchedules.length()];
@@ -159,12 +157,29 @@ public class SpaceAvailable {
         if (rates == null)
             return null;
 
-        JSONArray rateSchedule = rates.getJSONArray(KEY_RATE_SCHEDULE);
+        Rate[] rRates = null;
 
-        Rate[] rRates = new Rate[rateSchedule.length()];
+        if (!rates.isNull(KEY_RATE_SCHEDULE))
+        {
+            Object item = rates.get(KEY_RATE_SCHEDULE);
 
-        for (int i = 0; i < rRates.length; i++) {
-            rRates[i] = new Rate(rateSchedule.getJSONObject(i));
+            if (item instanceof JSONArray)
+            {
+                JSONArray rateSchedule = (JSONArray) item;
+
+                rRates = new Rate[rateSchedule.length()];
+
+                for (int i = 0; i < rRates.length; i++) {
+                    rRates[i] = new Rate(rateSchedule.getJSONObject(i));
+                }
+            }
+            else
+            {
+                JSONObject rateSchedule = (JSONObject) item;
+
+                rRates = new Rate[1];
+                rRates[0] = new Rate(rateSchedule);
+            }
         }
 
         return rRates;
