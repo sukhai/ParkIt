@@ -7,8 +7,8 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Location;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -16,23 +16,29 @@ import android.widget.Toast;
 
 import com.csc413.group9.parkIt.Database.DatabaseManager;
 import com.csc413.group9.parkIt.SFPark.ParkingInformation;
-import com.csc413.group9.parkIt.R;
+import com.csc413.group9.parkIt.SFPark.ParkingLocation;
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
+
+import java.util.ArrayList;
 
 public class MainActivity extends ActionBarActivity implements
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
+        GoogleMap.OnMapLoadedCallback,
         SensorEventListener {
 
     private static final float CAMERA_ZOOM_LEVEL = 18f;
@@ -44,6 +50,13 @@ public class MainActivity extends ActionBarActivity implements
     private CurrentLocation mCurrentLocation;
     private SensorManager mSensorManager;
     private float mMarkerRotation;
+    private boolean mapLoaded = false;
+    private boolean showPrice = true;
+    private boolean drawOnStreetParking = true;
+    private boolean drawOffStreetParking = true;
+    private boolean onStreetParkingIsDrawn = false;
+    private boolean offStreetParkingIsDrawn = false;
+    private ArrayList<Object> parkingIcons;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,6 +76,23 @@ public class MainActivity extends ActionBarActivity implements
 
         mCurrentLocation = new CurrentLocation(this);
         mParkingInfo = new ParkingInformation(this, mCurrentLocation.getLastKnownLocation());
+    }
+
+    private synchronized void buildGoogleMap() {
+
+        mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
+                .getMap();
+
+        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(LatLng latLng) {
+                placeMarkerOnMap(latLng);
+
+                mCurrentLocation.stopLocationUpdates();
+            }
+        });
+
+        mMap.setOnMapLoadedCallback(this);
     }
 
     /**
@@ -161,17 +191,19 @@ public class MainActivity extends ActionBarActivity implements
 
     }
 
+    @Override
+    public void onMapLoaded() {
+        System.err.println("MAP LOADED");
+        mapLoaded = true;
+        updateMap();
+    }
+
     /**
      * Track device's current location. The GPS will keep track of the location of the device
      * until somewhere on the map is clicked.
      * @param view The view of the application
      */
     public void trackDeviceLocation(View view) {
-
-
-
-
-    //    mParkingInfo.getData(37.729f, -122.479f, "", true);
 
         // Start tracking
         mCurrentLocation.startLocationUpdates();
@@ -214,18 +246,7 @@ public class MainActivity extends ActionBarActivity implements
 
         // Do a null check to confirm that we have not already instantiated the map.
         if (mMap == null) {
-            // Try to obtain the map from the SupportMapFragment.
-            mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
-                    .getMap();
-
-            mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
-                @Override
-                public void onMapClick(LatLng latLng) {
-                    placeMarkerOnMap(latLng);
-
-                    mCurrentLocation.stopLocationUpdates();
-                }
-            });
+            buildGoogleMap();
         }
 
         if (mMap != null) {
@@ -240,25 +261,83 @@ public class MainActivity extends ActionBarActivity implements
             mMap.animateCamera(
                     CameraUpdateFactory.newLatLngZoom(mMarker.getPosition(), CAMERA_ZOOM_LEVEL));
 
+            updateMap();
+        }
+    }
 
+    public void updateMap() {
+    //    if (mapLoaded) return;
 
+        if (mapLoaded && (!onStreetParkingIsDrawn || !offStreetParkingIsDrawn)) {
+            ArrayList<ParkingLocation> onStreet = mParkingInfo.getOnStreetParkingLocations();
+            ArrayList<ParkingLocation> offStreet = mParkingInfo.getOffStreetParkingLocations();
 
+            if (parkingIcons == null) {
+                parkingIcons = new ArrayList<Object>();
+            } else {
+                parkingIcons.clear();
+            }
 
-            // For testing purpose
+            if (drawOnStreetParking && !onStreetParkingIsDrawn) {
+                System.err.println("Draw on street parking");
+                highlightOnStreetParking(onStreet);
 
-            // Instantiates a new CircleOptions object and defines the center and radius
-            CircleOptions circleOptions = new CircleOptions()
-                    .center(point)
-                    .radius(1)
-                    .strokeColor(Color.GREEN)
-                    .fillColor(Color.GREEN); // In meters
+                onStreetParkingIsDrawn = true;
+            }
 
-            // Get back the mutable Circle
-            Circle circle = mMap.addCircle(circleOptions);
+            if (drawOffStreetParking && !offStreetParkingIsDrawn) {
+                System.out.println("draw off street");
+                highlightOffStreetParking(offStreet);
 
-   //         mMap.clear();
-   //         mMap.addCircle(circleOptions);
+                offStreetParkingIsDrawn = true;
+            }
+        }
+    }
 
+    private void highlightOnStreetParking(ArrayList<ParkingLocation> onStreet) {
+        CircleOptions circleOptions = new CircleOptions()
+                .radius(5f)
+                .strokeColor(Color.GREEN)
+                .fillColor(Color.GREEN);
+
+        for (int i = 0; i < onStreet.size(); i++) {
+
+            LatLng[] latLngs = onStreet.get(i).getLatLng();
+
+            // If there are 2 points, then draw a line from point1 to point2
+            if (latLngs.length == 2) {
+                // Draw a line
+                PolylineOptions lineOptions = new PolylineOptions()
+                        .add(latLngs[0])
+                        .add(latLngs[1])
+                        .color(Color.GREEN)
+                        .width(5f);
+
+                Polyline polyline = mMap.addPolyline(lineOptions);
+                parkingIcons.add(polyline);
+                System.out.println(latLngs[0] + " " + latLngs[1]);
+
+            } else {
+                // Draw a circle
+                circleOptions.center(latLngs[0]);
+                Circle circle = mMap.addCircle(circleOptions);
+                parkingIcons.add(circle);
+                System.out.println(latLngs[0]);
+                //      onStreetMarkers[i] = circle;
+            }
+        }
+    }
+
+    private void highlightOffStreetParking(ArrayList<ParkingLocation> offStreet) {
+
+        MarkerOptions markerOptions = new MarkerOptions()
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
+
+        for (int i = 0; i < offStreet.size(); i++) {
+            LatLng[] latLngs = offStreet.get(i).getLatLng();
+            markerOptions.position(latLngs[0]);
+
+            parkingIcons.add(mMap.addMarker(markerOptions));
         }
     }
 

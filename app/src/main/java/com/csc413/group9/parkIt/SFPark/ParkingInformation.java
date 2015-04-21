@@ -1,13 +1,20 @@
 package com.csc413.group9.parkIt.SFPark;
 
-import android.content.Context;
+import android.graphics.Color;
 import android.os.AsyncTask;
 import android.text.format.DateUtils;
 import android.widget.Toast;
 
-import com.csc413.group9.parkIt.Database.DatabaseHelper;
+import com.csc413.group9.parkIt.MainActivity;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
+import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
@@ -32,7 +39,7 @@ import java.util.ArrayList;
 import java.util.zip.GZIPInputStream;
 
 /**
- * This class handles the parking information around the current device.
+ * This class handles the parking information around the device's current location.
  *
  * Created by Su Khai Koh on 4/19/15.
  */
@@ -49,29 +56,27 @@ public class ParkingInformation {
     public static final String PRICE_OFF = "no";
 
     // Request parameters
-    private static final String RADIUS = "0.25";
+    private static final String RADIUS = "1000.0";
     private static final String RESPONSE = "json";
     private static final String VERSION = "1.0";
 
     // SFPark URL
     private static final String SERVICE_URL = "http://api.sfpark.org/sfpark/rest/availabilityservice?";
 
-    // Marker options
-
-    private Context mContext;
-    private GoogleMap mMap;
+    private MainActivity mMainActivity;
     private String uri;
     private String uriContent;
-    private ArrayList<SpaceAvailable> onStreetParkings;
-    private ArrayList<SpaceAvailable> offStreetParkings;
-    private Marker[] onStreetMarkers;
+    private ArrayList<ParkingLocation> onStreetParkings;
+    private ArrayList<ParkingLocation> offStreetParkings;
+    private Object[] onStreetMarkers;
     private Marker[] offStreetMarkers;
-    private HttpGet request;
     private boolean dataReady;
+    private boolean onStreetDrawn;
+    private boolean offStreetDrawn;
 
-    public ParkingInformation(Context context, String[] lastKnownLocation) {
+    public ParkingInformation(MainActivity mainActivity, String[] lastKnownLocation) {
 
-        mContext = context;
+        mMainActivity = mainActivity;
 
         float latitude = Float.parseFloat(lastKnownLocation[1]);
         float longitude = Float.parseFloat(lastKnownLocation[2]);
@@ -79,19 +84,87 @@ public class ParkingInformation {
         getData(latitude, longitude, "", true);
     }
 
+    public ArrayList<ParkingLocation> getOnStreetParkingLocations() {
+        return onStreetParkings;
+    }
+
+    public ArrayList<ParkingLocation> getOffStreetParkingLocations() {
+        return offStreetParkings;
+    }
+
     public void highlightOnStreetParking(GoogleMap map) {
 
+        if (onStreetDrawn)
+            return;
 
+        CircleOptions circleOptions = new CircleOptions()
+                .radius(1f)
+                .strokeColor(Color.GREEN)
+                .fillColor(Color.GREEN);
+
+        onStreetMarkers = new Object[onStreetParkings.size()];
+
+        for (int i = 0; i < onStreetParkings.size(); i++) {
+
+            LatLng[] latLngs = onStreetParkings.get(i).getLatLng();
+
+            // If there are 2 points, then draw a line from point1 to point2
+            if (latLngs.length == 2) {
+                // Draw a line
+                PolylineOptions lineOptions = new PolylineOptions()
+                        .add(latLngs[0])
+                        .add(latLngs[1])
+                        .color(Color.GREEN)
+                        .width(1f);
+
+                Polyline polyline = map.addPolyline(lineOptions);
+
+            } else {
+                // Draw a circle
+                circleOptions.center(latLngs[0]);
+                Circle circle = map.addCircle(circleOptions);
+
+                onStreetMarkers[i] = circle;
+            }
+        }
+
+        onStreetDrawn = true;
     }
 
     public void highlightOffStreetParking(GoogleMap map) {
 
+
+        if (offStreetDrawn)
+            return;
+
+        MarkerOptions markerOptions = new MarkerOptions()
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
+
+        offStreetMarkers = new Marker[offStreetParkings.size()];
+
+        for (int i = 0; i < offStreetParkings.size(); i++) {
+
+            LatLng[] latLngs = offStreetParkings.get(i).getLatLng();
+            markerOptions.position(latLngs[0]);
+
+            Marker marker = map.addMarker(markerOptions);
+            offStreetMarkers[i] = marker;
+        }
+
+        offStreetDrawn = true;
     }
 
     public void removeOnStreetHighlight() {
 
-        for (Marker marker : onStreetMarkers)
-            marker.remove();
+        for (Object marker : onStreetMarkers) {
+            if (marker instanceof Circle) {
+                Circle circle = (Circle) marker;
+                circle.remove();
+            } else {
+                Polyline line = (Polyline) marker;
+                line.remove();
+            }
+        }
     }
 
     public void removeOffStreetHighlight() {
@@ -118,10 +191,81 @@ public class ParkingInformation {
         ld.execute("String");
     }
 
+    private void initializeArrays() {
+
+        if (onStreetParkings == null)
+            onStreetParkings = new ArrayList<ParkingLocation>();
+        else
+            onStreetParkings.clear();
+
+        if (offStreetParkings == null)
+            offStreetParkings = new ArrayList<ParkingLocation>();
+        else
+            offStreetParkings.clear();
+    }
+
+    public boolean loadData() {
+
+        if (uriContent != null) {
+            return true;
+        }
+
+        boolean didLoad = false;
+
+        try {
+            uriContent = getURIContent(uri);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if (uriContent != null) {
+            didLoad = true;
+        }
+
+        return didLoad;
+    }
+
+    public void readData() {
+
+        try {
+
+            if (uriContent == null || uriContent == "") {
+                return;
+            }
+
+            JSONObject rootObject = new JSONObject(uriContent);
+            JSONArray jsonAVL = rootObject.has("AVL") ? rootObject.getJSONArray("AVL") : null;
+
+            if (jsonAVL == null)
+                return;
+
+            initializeArrays();
+
+            for (int i = 0; i < jsonAVL.length(); i++) {
+                JSONObject location = jsonAVL.getJSONObject(i);
+                ParkingLocation parkingLocation = new ParkingLocation(location);
+
+                if (parkingLocation.isOnStreet())
+                    onStreetParkings.add(parkingLocation);
+                else
+                    offStreetParkings.add(parkingLocation);
+
+            }
+
+            dataReady = true;
+
+            // Update the map
+            mMainActivity.updateMap();
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
     private String getURIContent(String uri) throws Exception {
 
         try {
-            request = new HttpGet();
+            HttpGet request = new HttpGet();
             request.setURI(new URI(uri));
             request.addHeader("Accept-Encoding", "gzip");
 
@@ -158,84 +302,10 @@ public class ParkingInformation {
         }
     }
 
-    private void initializeArrays() {
-
-        if (onStreetParkings == null)
-            onStreetParkings = new ArrayList<SpaceAvailable>();
-        else
-            onStreetParkings.clear();
-
-        if (offStreetParkings == null)
-            offStreetParkings = new ArrayList<SpaceAvailable>();
-        else
-            offStreetParkings.clear();
-    }
-
-    public boolean loadData() {
-
-        if (uriContent != null) {
-            return true;
-        }
-
-        boolean didLoad = false;
-
-        try {
-            uriContent = getURIContent(uri);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        if (uriContent != null) {
-            didLoad = true;
-        }
-
-        return didLoad;
-    }
-
-    public void readData() {
-
-        try {
-            // Get the content of the URI
-    //        uriContent = getURIContent(uri);
-
-            if (uriContent == null || uriContent == "") {
-                return;
-            }
-
-            System.out.println(uri);
-
-        //    JSONArray jsonAVL = null;
-
-            JSONObject rootObject = new JSONObject(uriContent);
-            JSONArray jsonAVL = rootObject.has("AVL") ? rootObject.getJSONArray("AVL") : null;
-
-            if (jsonAVL == null)
-                return;
-
-            initializeArrays();
-
-            for (int i = 0; i < jsonAVL.length(); i++) {
-                JSONObject space = jsonAVL.getJSONObject(i);
-                SpaceAvailable spaceAvailable = new SpaceAvailable(space);
-
-                if (spaceAvailable.isOnStreet())
-                    onStreetParkings.add(spaceAvailable);
-                else
-                    offStreetParkings.add(spaceAvailable);
-
-            }
-
-            dataReady = true;
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-    }
-
     private class LoadDataTask extends AsyncTask<String, Void, Void> {
 
         protected void onPreExecute() {
-            Toast.makeText(mContext,
+            Toast.makeText(mMainActivity,
                     "Fetching data ...",
                     Toast.LENGTH_SHORT)
                     .show();
