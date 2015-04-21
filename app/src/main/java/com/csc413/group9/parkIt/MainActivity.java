@@ -61,11 +61,8 @@ public class MainActivity extends ActionBarActivity implements
         buildGoogleApiClient();
         buildSensorManager();
 
-        mParkingInfo = new ParkingInformation(this);
         mCurrentLocation = new CurrentLocation(this);
-
-
-
+        mParkingInfo = new ParkingInformation(this, mCurrentLocation.getLastKnownLocation());
     }
 
     /**
@@ -171,7 +168,10 @@ public class MainActivity extends ActionBarActivity implements
      */
     public void trackDeviceLocation(View view) {
 
-        mParkingInfo.getData(37.729f, -122.479f, "", ParkingInformation.PRICE_ON);
+
+
+
+    //    mParkingInfo.getData(37.729f, -122.479f, "", true);
 
         // Start tracking
         mCurrentLocation.startLocationUpdates();

@@ -5,6 +5,7 @@ import android.os.AsyncTask;
 import android.text.format.DateUtils;
 import android.widget.Toast;
 
+import com.csc413.group9.parkIt.Database.DatabaseHelper;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.Marker;
 
@@ -59,16 +60,23 @@ public class ParkingInformation {
 
     private Context mContext;
     private GoogleMap mMap;
-    private String responseString;
+    private String uri;
+    private String uriContent;
     private ArrayList<SpaceAvailable> onStreetParkings;
     private ArrayList<SpaceAvailable> offStreetParkings;
     private Marker[] onStreetMarkers;
     private Marker[] offStreetMarkers;
     private HttpGet request;
+    private boolean dataReady;
 
-    public ParkingInformation(Context context) {
+    public ParkingInformation(Context context, String[] lastKnownLocation) {
 
         mContext = context;
+
+        float latitude = Float.parseFloat(lastKnownLocation[1]);
+        float longitude = Float.parseFloat(lastKnownLocation[2]);
+
+        getData(latitude, longitude, "", true);
     }
 
     public void highlightOnStreetParking(GoogleMap map) {
@@ -92,51 +100,22 @@ public class ParkingInformation {
             marker.remove();
     }
 
-    public void getData(float latitude, float longitude, String streetType, String priceInfo) {
+    public boolean isDataReady() {
+        return dataReady;
+    }
 
-        // Construct the URI string
-        String uri = SERVICE_URL + "radius=" + RADIUS +
-                     "&response=" + RESPONSE +
-                     "&latitude=" + latitude +
-                     "&longitude=" + longitude +
-                     "&version=" + VERSION +
-                     "&pricing=" + priceInfo +
+    public void getData(float latitude, float longitude, String streetType, boolean showPrice) {
+
+        uri = SERVICE_URL + "radius=" + RADIUS +
+                            "&response=" + RESPONSE +
+                            "&lat=" + latitude +
+                            "&long=" + longitude +
+                            "&version=" + VERSION +
+                            "&pricing=" + (showPrice ? PRICE_ON : PRICE_OFF) +
                 ((streetType == null || streetType.equals("")) ? "" : "&type=" + streetType);
 
-        System.err.println("ParkingInformation/getData() - Reading data from "+ uri);
-
-        try {
-            // Get the content of the URI
-            String uriContent = getURIContent(uri);
-
-            if (responseString == null || responseString == "") {
-                return;
-            }
-
-            JSONObject rootObject = null;
-            JSONArray jsonAVL = null;
-
-            rootObject = new JSONObject(uriContent);
-            jsonAVL = rootObject.getJSONArray("AVL");
-
-            initializeArrays();
-
-            for (int i = 0; i < jsonAVL.length(); i++) {
-                JSONObject space = jsonAVL.getJSONObject(i);
-                SpaceAvailable spaceAvailable = new SpaceAvailable(space);
-
-                if (spaceAvailable.isOnStreet())
-                    onStreetParkings.add(spaceAvailable);
-                else
-                    offStreetParkings.add(spaceAvailable);
-
-
-                System.out.println("ParkingInformation/getData() - Reading data: " + i);
-            }
-        } catch (Exception ex) {
-
-            System.err.println("ParkingInformation/getData() - Catch exception");
-        }
+        LoadDataTask ld = new LoadDataTask();
+        ld.execute("String");
     }
 
     private String getURIContent(String uri) throws Exception {
@@ -192,34 +171,88 @@ public class ParkingInformation {
             offStreetParkings.clear();
     }
 
+    public boolean loadData() {
+
+        if (uriContent != null) {
+            return true;
+        }
+
+        boolean didLoad = false;
+
+        try {
+            uriContent = getURIContent(uri);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if (uriContent != null) {
+            didLoad = true;
+        }
+
+        return didLoad;
+    }
+
+    public void readData() {
+
+        try {
+            // Get the content of the URI
+    //        uriContent = getURIContent(uri);
+
+            if (uriContent == null || uriContent == "") {
+                return;
+            }
+
+            System.out.println(uri);
+
+        //    JSONArray jsonAVL = null;
+
+            JSONObject rootObject = new JSONObject(uriContent);
+            JSONArray jsonAVL = rootObject.has("AVL") ? rootObject.getJSONArray("AVL") : null;
+
+            if (jsonAVL == null)
+                return;
+
+            initializeArrays();
+
+            for (int i = 0; i < jsonAVL.length(); i++) {
+                JSONObject space = jsonAVL.getJSONObject(i);
+                SpaceAvailable spaceAvailable = new SpaceAvailable(space);
+
+                if (spaceAvailable.isOnStreet())
+                    onStreetParkings.add(spaceAvailable);
+                else
+                    offStreetParkings.add(spaceAvailable);
+
+            }
+
+            dataReady = true;
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
     private class LoadDataTask extends AsyncTask<String, Void, Void> {
 
         protected void onPreExecute() {
             Toast.makeText(mContext,
-                    "Waiting for location ...",
+                    "Fetching data ...",
                     Toast.LENGTH_SHORT)
                     .show();
         }
 
         protected Void doInBackground(String... urls) {
-          //  loadData();
+            loadData();
             return null;
         }
 
         protected void onPostExecute(Void unused) {
-            /*
+
             try {
-                pd.setMessage("Reading data..");
                 readData();
-                pd.setMessage("Displaying data..");
-                displayData(false);
-                pd.dismiss();
-            } catch (JSONException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
-            } catch (NullPointerException npe) {
-                // this can happen if activity finished.  ignore.
             }
-            */
         }
     }
 

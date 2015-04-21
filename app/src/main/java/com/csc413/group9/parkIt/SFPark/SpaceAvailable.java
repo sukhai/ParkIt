@@ -55,26 +55,26 @@ public class SpaceAvailable {
         if (jsonObject == null)
             return;
 
-        String type = jsonObject.getString(KEY_TYPE);
+        String type = jsonObject.has(KEY_TYPE) ? jsonObject.getString(KEY_TYPE) : "";
         this.onStreet = type.equals(ParkingInformation.TYPE_ON_STREET);
 
-        String name = jsonObject.getString(KEY_NAME);
+        String name = jsonObject.has(KEY_NAME) ? jsonObject.getString(KEY_NAME) : "";
         this.name = name == null ? "" : name;
 
-        String desc = jsonObject.getString(KEY_DESCRIPTION);
+        String desc = jsonObject.has(KEY_DESCRIPTION) ? jsonObject.getString(KEY_DESCRIPTION) : "";
         this.description = desc == null ? "" : desc;
 
         JSONObject mRates = jsonObject.getJSONObject(KEY_RATES);
         this.rates = getRates(mRates);
 
         if (!onStreet) {
-            String phone = jsonObject.getString(KEY_TELEPHONE);
-            this.phoneNumber = phone == null ? "" : phone;
+            phoneNumber = jsonObject.has(KEY_TELEPHONE) ? jsonObject.getString(KEY_TELEPHONE) : "";
 
-            String location = jsonObject.getString(KEY_LOCATION);
+            String location = jsonObject.has(KEY_LOCATION) ? jsonObject.getString(KEY_LOCATION) : "";
             mLatLng = getLatLng(location);
 
-            JSONObject operationHours = jsonObject.getJSONObject(KEY_OPERATION_HOURS);
+            JSONObject operationHours = jsonObject.has(KEY_OPERATION_HOURS) ?
+                    jsonObject.getJSONObject(KEY_OPERATION_HOURS) : null;
             this.hours = getOperationHours(operationHours);
         }
     }
@@ -124,12 +124,31 @@ public class SpaceAvailable {
         if (schedule == null)
             return null;
 
-        JSONArray operationSchedules = schedule.getJSONArray(KEY_OPERATION_SCHEDULE);
+        OperationHours[] oHours = null;
 
-        OperationHours[] oHours = new OperationHours[operationSchedules.length()];
+        if (!schedule.isNull(KEY_OPERATION_SCHEDULE))
+        {
+            Object item = schedule.get(KEY_OPERATION_SCHEDULE);
 
-        for (int i = 0; i < oHours.length; i++) {
-            oHours[i] = new OperationHours(operationSchedules.getJSONObject(i));
+            if (item instanceof JSONArray)
+            {
+                JSONArray urlArray = (JSONArray) item;
+
+                JSONArray operationSchedules = (JSONArray) item;
+
+                oHours = new OperationHours[operationSchedules.length()];
+
+                for (int i = 0; i < oHours.length; i++) {
+                    oHours[i] = new OperationHours(operationSchedules.getJSONObject(i));
+                }
+            }
+            else
+            {
+                JSONObject operationSchedule = (JSONObject) item;
+
+                oHours = new OperationHours[1];
+                oHours[0] = new OperationHours(operationSchedule);
+            }
         }
 
         return oHours;
@@ -174,10 +193,10 @@ public class SpaceAvailable {
             if (hours == null)
                 return;
 
-            oFromDay = hours.getString(KEY_FROM);
-            oToDay = hours.getString(KEY_TO);
-            oBeginTime = hours.getString(KEY_BEGIN);
-            oEndTime = hours.getString(KEY_END);
+            oFromDay = hours.has(KEY_FROM) ? hours.getString(KEY_FROM) : "";
+            oToDay = hours.has(KEY_TO) ? hours.getString(KEY_TO) : "";
+            oBeginTime = hours.has(KEY_BEGIN) ? hours.getString(KEY_BEGIN) : "";
+            oEndTime = hours.has(KEY_END) ? hours.getString(KEY_END) : "";
         }
 
         public String getDayFrom() {
@@ -211,12 +230,12 @@ public class SpaceAvailable {
             if (rate == null)
                 return;
 
-            rBeginTime = rate.getString(KEY_BEGIN);
-            rEndTime = rate.getString(KEY_END);
-            rRate = rate.getString(KEY_RATE);
-            rDescription = rate.getString(KEY_DESCRIPTION);
-            rRateQualifier = rate.getString(KEY_RATE_QUALIFIER);
-            rRateRestriction = rate.getString(KEY_RATE_RESTRICTION);
+            rBeginTime = rate.has(KEY_BEGIN) ? rate.getString(KEY_BEGIN) : "";
+            rEndTime = rate.has(KEY_END) ? rate.getString(KEY_END) : "";
+            rRate = rate.has(KEY_RATE) ? rate.getString(KEY_RATE) : "";
+            rDescription = rate.has(KEY_DESCRIPTION) ? rate.getString(KEY_DESCRIPTION) : "";
+            rRateQualifier = rate.has(KEY_RATE_QUALIFIER) ? rate.getString(KEY_RATE_QUALIFIER) : "";
+            rRateRestriction = rate.has(KEY_RATE_RESTRICTION) ? rate.getString(KEY_RATE_RESTRICTION) : "";
         }
 
         public String getBeginTime() {
