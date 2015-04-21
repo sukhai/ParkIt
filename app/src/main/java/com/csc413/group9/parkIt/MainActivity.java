@@ -266,7 +266,7 @@ public class MainActivity extends ActionBarActivity implements
     }
 
     public void updateMap() {
-    //    if (mapLoaded) return;
+     //   if (mapLoaded) return;
 
         if (mapLoaded && (!onStreetParkingIsDrawn || !offStreetParkingIsDrawn)) {
             ArrayList<ParkingLocation> onStreet = mParkingInfo.getOnStreetParkingLocations();
@@ -302,27 +302,27 @@ public class MainActivity extends ActionBarActivity implements
 
         for (int i = 0; i < onStreet.size(); i++) {
 
-            LatLng[] latLngs = onStreet.get(i).getLatLng();
+            Location[] locations = onStreet.get(i).getLocation();
 
             // If there are 2 points, then draw a line from point1 to point2
-            if (latLngs.length == 2) {
+            if (locations.length == 2) {
                 // Draw a line
                 PolylineOptions lineOptions = new PolylineOptions()
-                        .add(latLngs[0])
-                        .add(latLngs[1])
+                        .add(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()))
+                        .add(new LatLng(locations[1].getLatitude(), locations[1].getLongitude()))
                         .color(Color.GREEN)
                         .width(5f);
 
                 Polyline polyline = mMap.addPolyline(lineOptions);
                 parkingIcons.add(polyline);
-                System.out.println(latLngs[0] + " " + latLngs[1]);
+       //         System.out.println(locations[0] + " " + locations[1]);
 
             } else {
                 // Draw a circle
-                circleOptions.center(latLngs[0]);
+                circleOptions.center(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()));
                 Circle circle = mMap.addCircle(circleOptions);
                 parkingIcons.add(circle);
-                System.out.println(latLngs[0]);
+       //         System.out.println(locations[0]);
                 //      onStreetMarkers[i] = circle;
             }
         }
@@ -334,10 +334,13 @@ public class MainActivity extends ActionBarActivity implements
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
 
         for (int i = 0; i < offStreet.size(); i++) {
-            LatLng[] latLngs = offStreet.get(i).getLatLng();
-            markerOptions.position(latLngs[0]);
+            Location[] locations = offStreet.get(i).getLocation();
+            markerOptions.position(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()));
 
             parkingIcons.add(mMap.addMarker(markerOptions));
+
+
+            System.out.println(locations[0].getLatitude() + ", " + locations[0].getLongitude());
         }
     }
 

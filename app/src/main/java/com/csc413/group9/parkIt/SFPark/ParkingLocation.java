@@ -1,6 +1,6 @@
 package com.csc413.group9.parkIt.SFPark;
 
-import com.google.android.gms.maps.model.LatLng;
+import android.location.Location;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -51,14 +51,14 @@ public class ParkingLocation {
     private String name;                    // The name of parking location
     private String description;             // Returned for OSP only – usually address for the parking location
     private String phoneNumber;             // Returned for OSP only – Contact telephone number for parking location
-    private LatLng[] mLatLng;               // Longitude and Latitude values of points for this location
+    private Location[] locations;           // Location of this parking
     private OperationHours[] hours;         // Returned for OSP only - the operating hours schedule information for this location
     private RateSchedule[] rates;           // General pricing or rate information for this location
 
     /**
      * Constructor that get an available parking location and parse the data to class members. The
-     * parking location may or may not the following data name, description, phone number, latitude,
-     * longitude, operation hours schedule, and/or pricing information.
+     * parking location may or may not the following data name, description, phone number, location
+     * coordinate, operation hours schedule, and/or pricing information.
      * @param space the available space that contains the data
      */
     public ParkingLocation(JSONObject space) {
@@ -72,7 +72,7 @@ public class ParkingLocation {
 
     /**
      * Parse the given JSON object to class members. The given JSON object may or may not the
-     * following data name, description, phone number, latitude, longitude, operation hours
+     * following data name, description, phone number, location coordinate, operation hours
      * schedule, and/or pricing information.
      * @param jsonObject the JSON object to get parsed
      * @throws JSONException any error when parsing the given JSON object
@@ -98,9 +98,9 @@ public class ParkingLocation {
         JSONObject mRates = jsonObject.getJSONObject(KEY_RATES);
         this.rates = getRates(mRates);
 
-        // Get the coordinate location on the map (latitude and longitude)
+        // Get the location coordinate on the map
         String location = jsonObject.has(KEY_LOCATION) ? jsonObject.getString(KEY_LOCATION) : "";
-        mLatLng = getLatLng(location);
+        this.locations = getLocation(location);
 
         // All data below is only for off-street parking space (parking lot building)
         if (!onStreet) {
@@ -115,24 +115,26 @@ public class ParkingLocation {
     }
 
     /**
-     * Get the latitude and longitude of the parking location.
-     * @param location the parking location
-     * @return the latitude and longitude of the parking location
+     * Get the location coordinate (latitude and longitude) of the parking location.
+     * @param location the string that contains parking location coordinate
+     * @return the coordinate of the parking location
      */
-    private LatLng[] getLatLng(String location) {
+    private Location[] getLocation(String location) {
 
         String[] points = location.split(",");
 
-        LatLng[] latLngs = new LatLng[points.length / 2];
+        Location[] tempLocations = new Location[points.length / 2];
 
-        for (int i = 0, j = 0; i < points.length; i++, j++) {
-            float latitude = Float.parseFloat(points[i]);
-            float longitude = Float.parseFloat(points[++i]);
+        for (int i = 0, j = 0; i < points.length; i+=2, j++) {
+            double lat = Double.parseDouble(points[i]);
+            double lon = Double.parseDouble(points[i + 1]);
 
-            latLngs[j] = new LatLng(latitude, longitude);
+            tempLocations[j] = new Location("");
+            tempLocations[j].setLatitude(lon);
+            tempLocations[j].setLongitude(lat);
         }
 
-        return latLngs;
+        return tempLocations;
     }
 
     /**
@@ -248,11 +250,11 @@ public class ParkingLocation {
     }
 
     /**
-     * Get the latitude and longitude of this parking location.
-     * @return the latitude and longitude of this parking location
+     * Get the location coordinate of this parking location.
+     * @return the location coordinate of this parking location
      */
-    public LatLng[] getLatLng() {
-        return mLatLng;
+    public Location[] getLocation() {
+        return locations;
     }
 
     /**

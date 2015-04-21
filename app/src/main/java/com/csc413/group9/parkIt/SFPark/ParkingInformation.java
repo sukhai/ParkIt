@@ -1,6 +1,7 @@
 package com.csc413.group9.parkIt.SFPark;
 
 import android.graphics.Color;
+import android.location.Location;
 import android.os.AsyncTask;
 import android.text.format.DateUtils;
 import android.widget.Toast;
@@ -106,14 +107,14 @@ public class ParkingInformation {
 
         for (int i = 0; i < onStreetParkings.size(); i++) {
 
-            LatLng[] latLngs = onStreetParkings.get(i).getLatLng();
+            Location[] locations = onStreetParkings.get(i).getLocation();
 
             // If there are 2 points, then draw a line from point1 to point2
-            if (latLngs.length == 2) {
+            if (locations.length == 2) {
                 // Draw a line
                 PolylineOptions lineOptions = new PolylineOptions()
-                        .add(latLngs[0])
-                        .add(latLngs[1])
+                        .add(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()))
+                        .add(new LatLng(locations[1].getLatitude(), locations[1].getLongitude()))
                         .color(Color.GREEN)
                         .width(1f);
 
@@ -121,7 +122,7 @@ public class ParkingInformation {
 
             } else {
                 // Draw a circle
-                circleOptions.center(latLngs[0]);
+                circleOptions.center(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()));
                 Circle circle = map.addCircle(circleOptions);
 
                 onStreetMarkers[i] = circle;
@@ -144,8 +145,8 @@ public class ParkingInformation {
 
         for (int i = 0; i < offStreetParkings.size(); i++) {
 
-            LatLng[] latLngs = offStreetParkings.get(i).getLatLng();
-            markerOptions.position(latLngs[0]);
+            Location[] locations = offStreetParkings.get(i).getLocation();
+            markerOptions.position(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()));
 
             Marker marker = map.addMarker(markerOptions);
             offStreetMarkers[i] = marker;
@@ -245,8 +246,10 @@ public class ParkingInformation {
                 JSONObject location = jsonAVL.getJSONObject(i);
                 ParkingLocation parkingLocation = new ParkingLocation(location);
 
-                if (parkingLocation.isOnStreet())
+                if (parkingLocation.isOnStreet()) {
                     onStreetParkings.add(parkingLocation);
+          //          System.out.println(parkingLocation.getLatLng()[0]);
+                }
                 else
                     offStreetParkings.add(parkingLocation);
 
@@ -263,6 +266,8 @@ public class ParkingInformation {
     }
 
     private String getURIContent(String uri) throws Exception {
+
+        System.err.println("Fetching data from: " + uri);
 
         try {
             HttpGet request = new HttpGet();
