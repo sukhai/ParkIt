@@ -84,7 +84,7 @@ public class ParkingLocation {
 
         // Get the type
         String type = jsonObject.has(KEY_TYPE) ? jsonObject.getString(KEY_TYPE) : "";
-        this.onStreet = type.equalsIgnoreCase(ParkingInformation.TYPE_ON_STREET);
+        this.onStreet = type.equalsIgnoreCase("on");
 
         // Get the name
         String name = jsonObject.has(KEY_NAME) ? jsonObject.getString(KEY_NAME) : "";

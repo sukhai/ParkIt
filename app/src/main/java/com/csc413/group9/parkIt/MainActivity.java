@@ -16,7 +16,6 @@ import android.widget.Toast;
 
 import com.csc413.group9.parkIt.Database.DatabaseManager;
 import com.csc413.group9.parkIt.SFPark.ParkingInformation;
-import com.csc413.group9.parkIt.SFPark.ParkingLocation;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -30,10 +29,6 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.Polyline;
-import com.google.android.gms.maps.model.PolylineOptions;
-
-import java.util.ArrayList;
 
 public class MainActivity extends ActionBarActivity implements
         GoogleApiClient.ConnectionCallbacks,
@@ -44,7 +39,8 @@ public class MainActivity extends ActionBarActivity implements
     private static final float CAMERA_ZOOM_LEVEL = 18f;
 
     private GoogleMap mMap;
-    private Marker mMarker;
+    private Marker mCLMarker;
+    private Circle mCLMarkerCircle;
     private GoogleApiClient mGoogleApiClient;
     private ParkingInformation mParkingInfo;
     private CurrentLocation mCurrentLocation;
@@ -52,11 +48,8 @@ public class MainActivity extends ActionBarActivity implements
     private float mMarkerRotation;
     private boolean mapLoaded = false;
     private boolean showPrice = true;
-    private boolean drawOnStreetParking = true;
-    private boolean drawOffStreetParking = true;
-    private boolean onStreetParkingIsDrawn = false;
-    private boolean offStreetParkingIsDrawn = false;
-    private ArrayList<Object> parkingIcons;
+    private boolean showOnStreetParking = true;
+    private boolean showOffStreetParking = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,7 +68,10 @@ public class MainActivity extends ActionBarActivity implements
         buildSensorManager();
 
         mCurrentLocation = new CurrentLocation(this);
-        mParkingInfo = new ParkingInformation(this, mCurrentLocation.getLastKnownLocation());
+
+        buildGoogleMap();
+
+        mParkingInfo = new ParkingInformation(this, mMap);
     }
 
     private synchronized void buildGoogleMap() {
@@ -181,8 +177,8 @@ public class MainActivity extends ActionBarActivity implements
 
         mMarkerRotation = event.values[0] - 170.0f;
 
-        if (mMarker != null) {
-            mMarker.setRotation(mMarkerRotation);
+        if (mCLMarker != null) {
+            mCLMarker.setRotation(mMarkerRotation);
         }
     }
 
@@ -193,9 +189,11 @@ public class MainActivity extends ActionBarActivity implements
 
     @Override
     public void onMapLoaded() {
-        System.err.println("MAP LOADED");
+
         mapLoaded = true;
-        updateMap();
+
+        if (mParkingInfo.isSFParkDataReady())
+            mParkingInfo.highlightStreet(showOnStreetParking, showOffStreetParking);
     }
 
     /**
@@ -238,109 +236,42 @@ public class MainActivity extends ActionBarActivity implements
         // For testing purpose
         Toast.makeText(getApplicationContext(), point.latitude + ", " + point.longitude, Toast.LENGTH_SHORT).show();
 
-
-
-        if (mMarker != null) {
-            mMarker.remove();
-        }
-
         // Do a null check to confirm that we have not already instantiated the map.
         if (mMap == null) {
             buildGoogleMap();
         }
 
         if (mMap != null) {
-            mMarker = mMap.addMarker(new MarkerOptions()
-                    .position(new LatLng(point.latitude, point.longitude))
-                    .flat(true)
-                    .anchor(0.5f, 0.5f)
-                    .rotation(mMarkerRotation)
-                    .visible(true));
+
+            if (mCLMarker != null) {
+
+                mCLMarker.setPosition(new LatLng(point.latitude, point.longitude));
+                mCLMarker.setRotation(mMarkerRotation);
+
+            } else {
+                mCLMarker = mMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(point.latitude, point.longitude))
+                        .rotation(mMarkerRotation)
+                        .anchor(0.5f, 0.75f)
+                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_user)));
+            }
+
+            if (mCLMarkerCircle != null) {
+
+                mCLMarkerCircle.setCenter(new LatLng(point.latitude, point.longitude));
+
+            } else {
+                mCLMarkerCircle = mMap.addCircle(new CircleOptions()
+                        .center(new LatLng(point.latitude, point.longitude))
+                        .radius(45f)
+                        .fillColor(Color.TRANSPARENT)
+                        .strokeWidth(1.5f)
+                        .strokeColor(0xFFE01368));
+            }
 
             // Move the camera to the marker
             mMap.animateCamera(
-                    CameraUpdateFactory.newLatLngZoom(mMarker.getPosition(), CAMERA_ZOOM_LEVEL));
-
-            updateMap();
-        }
-    }
-
-    public void updateMap() {
-     //   if (mapLoaded) return;
-
-        if (mapLoaded && (!onStreetParkingIsDrawn || !offStreetParkingIsDrawn)) {
-            ArrayList<ParkingLocation> onStreet = mParkingInfo.getOnStreetParkingLocations();
-            ArrayList<ParkingLocation> offStreet = mParkingInfo.getOffStreetParkingLocations();
-
-            if (parkingIcons == null) {
-                parkingIcons = new ArrayList<Object>();
-            } else {
-                parkingIcons.clear();
-            }
-
-            if (drawOnStreetParking && !onStreetParkingIsDrawn) {
-                System.err.println("Draw on street parking");
-                highlightOnStreetParking(onStreet);
-
-                onStreetParkingIsDrawn = true;
-            }
-
-            if (drawOffStreetParking && !offStreetParkingIsDrawn) {
-                System.out.println("draw off street");
-                highlightOffStreetParking(offStreet);
-
-                offStreetParkingIsDrawn = true;
-            }
-        }
-    }
-
-    private void highlightOnStreetParking(ArrayList<ParkingLocation> onStreet) {
-        CircleOptions circleOptions = new CircleOptions()
-                .radius(5f)
-                .strokeColor(Color.GREEN)
-                .fillColor(Color.GREEN);
-
-        for (int i = 0; i < onStreet.size(); i++) {
-
-            Location[] locations = onStreet.get(i).getLocation();
-
-            // If there are 2 points, then draw a line from point1 to point2
-            if (locations.length == 2) {
-                // Draw a line
-                PolylineOptions lineOptions = new PolylineOptions()
-                        .add(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()))
-                        .add(new LatLng(locations[1].getLatitude(), locations[1].getLongitude()))
-                        .color(Color.GREEN)
-                        .width(5f);
-
-                Polyline polyline = mMap.addPolyline(lineOptions);
-                parkingIcons.add(polyline);
-       //         System.out.println(locations[0] + " " + locations[1]);
-
-            } else {
-                // Draw a circle
-                circleOptions.center(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()));
-                Circle circle = mMap.addCircle(circleOptions);
-                parkingIcons.add(circle);
-       //         System.out.println(locations[0]);
-                //      onStreetMarkers[i] = circle;
-            }
-        }
-    }
-
-    private void highlightOffStreetParking(ArrayList<ParkingLocation> offStreet) {
-
-        MarkerOptions markerOptions = new MarkerOptions()
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
-
-        for (int i = 0; i < offStreet.size(); i++) {
-            Location[] locations = offStreet.get(i).getLocation();
-            markerOptions.position(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()));
-
-            parkingIcons.add(mMap.addMarker(markerOptions));
-
-
-            System.out.println(locations[0].getLatitude() + ", " + locations[0].getLongitude());
+                    CameraUpdateFactory.newLatLngZoom(mCLMarker.getPosition(), CAMERA_ZOOM_LEVEL));
         }
     }
 
