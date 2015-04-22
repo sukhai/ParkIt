@@ -1,6 +1,7 @@
 package com.csc413.group9.parkIt;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -22,6 +23,9 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -35,7 +39,8 @@ public class MainActivity extends ActionBarActivity implements
     private static final float CAMERA_ZOOM_LEVEL = 18f;
 
     private GoogleMap mMap;
-    private Marker mMarker;
+    private Marker mCLMarker;
+    private Circle mCLMarkerCircle;
     private GoogleApiClient mGoogleApiClient;
     private ParkingInformation mParkingInfo;
     private CurrentLocation mCurrentLocation;
@@ -172,8 +177,8 @@ public class MainActivity extends ActionBarActivity implements
 
         mMarkerRotation = event.values[0] - 170.0f;
 
-        if (mMarker != null) {
-            mMarker.setRotation(mMarkerRotation);
+        if (mCLMarker != null) {
+            mCLMarker.setRotation(mMarkerRotation);
         }
     }
 
@@ -231,28 +236,42 @@ public class MainActivity extends ActionBarActivity implements
         // For testing purpose
         Toast.makeText(getApplicationContext(), point.latitude + ", " + point.longitude, Toast.LENGTH_SHORT).show();
 
-
-
-        if (mMarker != null) {
-            mMarker.remove();
-        }
-
         // Do a null check to confirm that we have not already instantiated the map.
         if (mMap == null) {
             buildGoogleMap();
         }
 
         if (mMap != null) {
-            mMarker = mMap.addMarker(new MarkerOptions()
-                    .position(new LatLng(point.latitude, point.longitude))
-                    .flat(true)
-                    .anchor(0.5f, 0.5f)
-                    .rotation(mMarkerRotation)
-                    .visible(true));
+
+            if (mCLMarker != null) {
+
+                mCLMarker.setPosition(new LatLng(point.latitude, point.longitude));
+                mCLMarker.setRotation(mMarkerRotation);
+
+            } else {
+                mCLMarker = mMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(point.latitude, point.longitude))
+                        .rotation(mMarkerRotation)
+                        .anchor(0.5f, 0.75f)
+                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_user)));
+            }
+
+            if (mCLMarkerCircle != null) {
+
+                mCLMarkerCircle.setCenter(new LatLng(point.latitude, point.longitude));
+
+            } else {
+                mCLMarkerCircle = mMap.addCircle(new CircleOptions()
+                        .center(new LatLng(point.latitude, point.longitude))
+                        .radius(45f)
+                        .fillColor(Color.TRANSPARENT)
+                        .strokeWidth(1.5f)
+                        .strokeColor(0xFFE01368));
+            }
 
             // Move the camera to the marker
             mMap.animateCamera(
-                    CameraUpdateFactory.newLatLngZoom(mMarker.getPosition(), CAMERA_ZOOM_LEVEL));
+                    CameraUpdateFactory.newLatLngZoom(mCLMarker.getPosition(), CAMERA_ZOOM_LEVEL));
         }
     }
 
