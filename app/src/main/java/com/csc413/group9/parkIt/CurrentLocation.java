@@ -76,7 +76,7 @@ public class CurrentLocation extends Service implements LocationListener {
             if ((GPSEnabled || networkEnabled) && keepTrack) {
 
                 canGetLocation = true;
-
+/*
                 // If the network is enabled, then get the network location
                 if (networkEnabled) {
 
@@ -90,13 +90,13 @@ public class CurrentLocation extends Service implements LocationListener {
                         // Draw the current location on the map and save the coordinate to database
                         if (mLocation != null) {
 
-                            mMainActivity.placeMarkerOnMap(mLocation);
+                            mMainActivity.placeMarkerOnMap(mLocation, true);
 
                             setLastKnownLocation(mLocation);
                         }
                     }
                 }
-
+*/
                 // If GPS is also enabled, then get the GPS location
                 if (GPSEnabled) {
 
@@ -110,7 +110,7 @@ public class CurrentLocation extends Service implements LocationListener {
                         // Draw the current location on the map and save the coordinate to database
                         if (mLocation != null) {
 
-                            mMainActivity.placeMarkerOnMap(mLocation);
+                            mMainActivity.placeMarkerOnMap(mLocation, true);
 
                             setLastKnownLocation(mLocation);
                         }
@@ -290,7 +290,7 @@ public class CurrentLocation extends Service implements LocationListener {
             mLocation = location;
 
             // Draw on map
-            mMainActivity.placeMarkerOnMap(mLocation);
+            mMainActivity.placeMarkerOnMap(mLocation, true);
 
             // Save to database
             setLastKnownLocation(mLocation);
