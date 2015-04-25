@@ -15,7 +15,7 @@
 
     <ImageButton
         android:id="@+id/btn_currentLocation"
-        android:src="@drawable/blue_air"
+        android:src="@drawable/btn_locator"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
