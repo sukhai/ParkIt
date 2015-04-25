@@ -6,12 +6,18 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.SystemClock;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.Interpolator;
 import android.widget.Toast;
 
 import com.csc413.group9.parkIt.Database.DatabaseManager;
@@ -30,15 +36,22 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Locale;
+
 public class MainActivity extends ActionBarActivity implements
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         GoogleMap.OnMapLoadedCallback,
         SensorEventListener {
 
+    private static final double SF_LATITUDE = 37.7833;
+    private static final double SF_LONGITUDE = -122.4167;
     private static final float CAMERA_ZOOM_LEVEL = 18f;
 
     private GoogleMap mMap;
+    private Marker mClickedLocationMarker;
     private Marker mCLMarker;
     private Circle mCLMarkerCircle;
     private GoogleApiClient mGoogleApiClient;
@@ -82,13 +95,19 @@ public class MainActivity extends ActionBarActivity implements
         mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
             public void onMapClick(LatLng latLng) {
-                placeMarkerOnMap(latLng);
+
+                Location location = new Location("Clicked Location");
+                location.setLatitude(latLng.latitude);
+                location.setLongitude(latLng.longitude);
+
+                placeMarkerOnMap(location, false);
 
                 mCurrentLocation.stopLocationUpdates();
             }
         });
 
         mMap.setOnMapLoadedCallback(this);
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(SF_LATITUDE, SF_LONGITUDE), 10));
     }
 
     /**
@@ -175,7 +194,7 @@ public class MainActivity extends ActionBarActivity implements
     @Override
     public void onSensorChanged(SensorEvent event) {
 
-        mMarkerRotation = event.values[0] - 170.0f;
+        mMarkerRotation = event.values[0];
 
         if (mCLMarker != null) {
             mCLMarker.setRotation(mMarkerRotation);
@@ -212,7 +231,7 @@ public class MainActivity extends ActionBarActivity implements
             Location location = mCurrentLocation.getLocation();
 
             if (location != null) {
-                placeMarkerOnMap(new LatLng(location.getLatitude(), location.getLongitude()));
+                placeMarkerOnMap(location, true);
             }
 
         } else {
@@ -220,59 +239,173 @@ public class MainActivity extends ActionBarActivity implements
 
             String[] location = mCurrentLocation.getLastKnownLocation();
 
-            double latitude = Double.parseDouble(location[1]);
-            double longitude = Double.parseDouble(location[2]);
+         //   double latitude = Double.parseDouble(location[1]);
+         //   double longitude = Double.parseDouble(location[2]);
+            Location loc = new Location(location[0]);
+            loc.setLatitude(Double.parseDouble(location[1]));
+            loc.setLongitude(Double.parseDouble(location[2]));
 
-            placeMarkerOnMap(new LatLng(latitude, longitude));
+            placeMarkerOnMap(loc, true);
         }
     }
 
     /**
-     * Place a marker on the map on the specified latitude and longitude coordinate.
-     * @param point The latitude and longitude coordinate on the map
+     * Place a marker on the map on the specified location on the map.
+     * @param location The location of the marker to be placed on the map
+     * @param isCurrentLocationMarker true if this marker is for current location, false otherwise
      */
-    public void placeMarkerOnMap(LatLng point) {
+    public void placeMarkerOnMap(Location location, boolean isCurrentLocationMarker) {
 
         // For testing purpose
-        Toast.makeText(getApplicationContext(), point.latitude + ", " + point.longitude, Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), location.getLatitude() + ", " + location.getLongitude(), Toast.LENGTH_SHORT).show();
 
         // Do a null check to confirm that we have not already instantiated the map.
-        if (mMap == null) {
+        if (mMap == null)
             buildGoogleMap();
-        }
 
         if (mMap != null) {
+            // The marker is for current location
+            if (isCurrentLocationMarker) {
+                if (mClickedLocationMarker != null)
+                    mClickedLocationMarker.remove();
 
-            if (mCLMarker != null) {
+                if (mCLMarker != null && mCLMarkerCircle != null) {
+                    // Show the marker
+                    mCLMarker.setVisible(true);
+                    mCLMarkerCircle.setVisible(true);
 
-                mCLMarker.setPosition(new LatLng(point.latitude, point.longitude));
-                mCLMarker.setRotation(mMarkerRotation);
+                    Location current = new Location(mCLMarker.getTitle());
+
+                    // If the next location is less than 10 meters away, then animate to that new location
+                    if (current.distanceTo(location) <= 10f) {
+                        animateMarker(current, location);
+                    } else {
+                        // Otherwise just move the marker to that new location without animation
+                        mCLMarker.setPosition(new LatLng(location.getLatitude(), location.getLongitude()));
+                        mCLMarker.setRotation(mMarkerRotation);
+                        mCLMarkerCircle.setCenter(new LatLng(location.getLatitude(), location.getLongitude()));
+                    }
+
+                } else {
+                    // Create the marker
+                    mCLMarker = mMap.addMarker(new MarkerOptions()
+                            .position(new LatLng(location.getLatitude(), location.getLongitude()))
+                            .rotation(mMarkerRotation)
+                            .anchor(0.5f, 0.75f)
+                            .flat(true)
+                            .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_user)));
+
+                    mCLMarkerCircle = mMap.addCircle(new CircleOptions()
+                            .center(new LatLng(location.getLatitude(), location.getLongitude()))
+                            .radius(45f)
+                            .fillColor(Color.TRANSPARENT)
+                            .strokeWidth(1.5f)
+                            .strokeColor(0xFFE01368));
+                }
 
             } else {
-                mCLMarker = mMap.addMarker(new MarkerOptions()
-                        .position(new LatLng(point.latitude, point.longitude))
-                        .rotation(mMarkerRotation)
-                        .anchor(0.5f, 0.75f)
-                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_user)));
-            }
+                // The marker is not for current location, so just place a regular marker on the
+                // specified location
 
-            if (mCLMarkerCircle != null) {
+                if (mCLMarker != null) {
+                    // Hide the marker
+                    mCLMarker.setVisible(false);
+                    mCLMarkerCircle.setVisible(false);
+                }
 
-                mCLMarkerCircle.setCenter(new LatLng(point.latitude, point.longitude));
+                if (mClickedLocationMarker != null)
+                    mClickedLocationMarker.remove();
 
-            } else {
-                mCLMarkerCircle = mMap.addCircle(new CircleOptions()
-                        .center(new LatLng(point.latitude, point.longitude))
-                        .radius(45f)
-                        .fillColor(Color.TRANSPARENT)
-                        .strokeWidth(1.5f)
-                        .strokeColor(0xFFE01368));
+                mClickedLocationMarker = mMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(location.getLatitude(), location.getLongitude()))
+                        .title(getAddress(location)));
+
+                // Show the address of the clicked location
+                mClickedLocationMarker.showInfoWindow();
             }
 
             // Move the camera to the marker
             mMap.animateCamera(
-                    CameraUpdateFactory.newLatLngZoom(mCLMarker.getPosition(), CAMERA_ZOOM_LEVEL));
+                    CameraUpdateFactory.newLatLngZoom(
+                            new LatLng(location.getLatitude(), location.getLongitude()),
+                            CAMERA_ZOOM_LEVEL));
         }
+    }
+
+    private void animateMarker(Location from, Location to) {
+
+        // Convert Location objects to LatLng objects
+        double fromLatitude = from.getLatitude();
+        double fromLongitude = from.getLongitude();
+        double toLatitude = to.getLatitude();
+        double toLongitude = to.getLongitude();
+
+        // Setting up values for animation
+        final LatLng startPosition = new LatLng(fromLatitude, fromLongitude);
+        final LatLng finalPosition = new LatLng(toLatitude, toLongitude);
+
+        // Start time
+        final long start = SystemClock.uptimeMillis();
+
+        // Animate using interpolator
+        final Interpolator interpolator = new AccelerateDecelerateInterpolator();
+
+        // Complete the animation over 1s
+        final float durationInMs = 1000;
+
+        final Handler handler = new Handler();
+
+        handler.post(new Runnable() {
+
+            long elapsed;
+            float t;
+            float v;
+
+            @Override
+            public void run() {
+                // Calculate progress using interpolator
+                elapsed = SystemClock.uptimeMillis() - start;
+                t = elapsed / durationInMs;
+                v = interpolator.getInterpolation(t);
+
+                LatLng currentPosition = new LatLng(
+                        startPosition.latitude*(1-t)+finalPosition.latitude*t,
+                        startPosition.longitude*(1-t)+finalPosition.longitude*t);
+
+                mCLMarker.setPosition(currentPosition);
+                mCLMarkerCircle.setCenter(currentPosition);
+
+                // Repeat until the animation is completed.
+                if (t < 1) {
+                    // Post again 16ms later.
+                    handler.postDelayed(this, 16);
+                }
+            }
+        });
+    }
+
+    private String getAddress(Location loc) {
+
+        String addr = "";
+
+        Geocoder geocoder;
+        List<Address> addresses = null;
+        geocoder = new Geocoder(this, Locale.getDefault());
+
+        try {
+            addresses = geocoder.getFromLocation(loc.getLatitude(), loc.getLongitude(), 1);
+        } catch (IOException e) {
+            // Unable to get the address, so we do nothing
+        }
+
+        if (addresses != null && addresses.size() > 0) {
+            String address = addresses.get(0).getAddressLine(0);
+            String postalCode = addresses.get(0).getPostalCode().split(" ")[0];
+
+            addr = address + ", " + postalCode;
+        }
+
+        return addr;
     }
 
     /**

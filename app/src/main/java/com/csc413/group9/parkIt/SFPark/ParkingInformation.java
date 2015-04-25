@@ -101,6 +101,7 @@ public class ParkingInformation {
             removeOffStreetHighlighted();
             highlightedOffStreetParking = false;
         }
+
     }
 
     /**
@@ -391,6 +392,12 @@ public class ParkingInformation {
         protected void onPostExecute(Void unused) {
 
             try {
+
+                // Show a message saying this app is fetching data
+                Toast.makeText(mMainActivity,
+                        "Displaying data ...",
+                        Toast.LENGTH_SHORT)
+                        .show();
 
                 initializeOnStreetParking();
                 initializeOffStreetParking();
