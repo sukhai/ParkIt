@@ -10,6 +10,7 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.support.v7.app.ActionBarActivity;
@@ -18,6 +19,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.Interpolator;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.csc413.group9.parkIt.Database.DatabaseManager;
@@ -49,7 +51,7 @@ public class MainActivity extends ActionBarActivity implements
     private static final double SF_LATITUDE = 37.7833;
     private static final double SF_LONGITUDE = -122.4167;
     private static final float CAMERA_ZOOM_LEVEL = 18f;
-
+    TextView tv; //textview to display the countdown
     private GoogleMap mMap;
     private Marker mClickedLocationMarker;
     private Marker mCLMarker;
@@ -64,14 +66,64 @@ public class MainActivity extends ActionBarActivity implements
     private boolean showOnStreetParking = true;
     private boolean showOffStreetParking = true;
 
+
+    /** Called when the activity is first created. */
+       /* @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+
+            tv = new TextView(this);
+            this.setContentView(tv);
+
+            //5000 is the starting number (in milliseconds)
+            //1000 is the number to count down each time (in milliseconds)
+            MyCount counter = new MyCount(5000,1000);
+
+            counter.start();
+
+        }
+
+        //countdowntimer is an abstract class, so extend it and fill in methods
+        public class MyCount extends CountDownTimer {
+
+            public MyCount(long millisInFuture, long countDownInterval) {
+                super(millisInFuture, countDownInterval);
+            }
+
+            @Override
+            public void onFinish() {
+                tv.setText("done!");
+            }
+
+            @Override
+            public void onTick(long millisUntilFinished) {
+                tv.setText("Left: " + millisUntilFinished/1000);
+
+            }
+
+        }*/
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
 
         super.onCreate(savedInstanceState);
 
         if (!servicesAvailable()) {
             finish();
         }
+
+        tv = new TextView(this);
+        this.setContentView(tv);
+
+        //5000 is the starting number (in milliseconds)
+        //1000 is the number to count down each time (in milliseconds)
+        MyCount counter = new MyCount(5000,1000);
+
+        counter.start();
+
+
+
+
 
         setContentView(R.layout.activity_main);
 
@@ -87,7 +139,26 @@ public class MainActivity extends ActionBarActivity implements
         mParkingInfo = new ParkingInformation(this, mMap);
     }
 
-    private synchronized void buildGoogleMap() {
+    //countdowntimer is an abstract class, so extend it and fill in methods
+    public class MyCount extends CountDownTimer {
+
+        public MyCount(long millisInFuture, long countDownInterval) {
+            super(millisInFuture, countDownInterval);
+        }
+
+        @Override
+        public void onFinish() {
+            tv.setText("done!");
+        }
+
+        @Override
+        public void onTick(long millisUntilFinished) {
+            tv.setText("Left: " + millisUntilFinished / 1000);
+
+        }
+
+    }
+        private synchronized void buildGoogleMap() {
 
         mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
                 .getMap();
