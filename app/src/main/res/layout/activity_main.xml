@@ -22,8 +22,19 @@
         android:layout_alignParentRight="true"
         android:layout_alignParentEnd="true"
         android:background="#00ffffff"
-        android:layout_marginRight="15dp"
-        android:layout_marginBottom="15dp"
+        android:layout_marginRight="10dp"
+        android:layout_marginBottom="10dp"
         android:onClick="trackDeviceLocation" />
+
+    <ImageButton
+        android:id="@+id/btn_warning_timer"
+        android:src="@drawable/btn_locator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        android:layout_marginRight="10dp"
+        android:background="#00ffffff"
+        android:onClick="showWarningTimerWindow"/>
 
 </RelativeLayout>
