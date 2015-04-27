@@ -141,7 +141,8 @@ public class CurrentLocation extends Service implements LocationListener {
                         // Draw the current location on the map and save the coordinate to database
                         if (mLocation != null) {
 
-                            mMainActivity.placeMarkerOnMap(mLocation, true);
+                            if (mMainActivity.isMapLoaded())
+                                mMainActivity.placeMarkerOnMap(mLocation, true);
 
                             setLastKnownLocation(mLocation);
                         }
@@ -323,8 +324,9 @@ public class CurrentLocation extends Service implements LocationListener {
 
             mLocation = location;
 
-            // Draw on map
-            mMainActivity.placeMarkerOnMap(mLocation, true);
+            if (mMainActivity.isMapLoaded())
+                // Draw on map
+                mMainActivity.placeMarkerOnMap(mLocation, true);
 
             // Save to database
             setLastKnownLocation(mLocation);

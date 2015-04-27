@@ -113,7 +113,8 @@ public class MainActivity extends ActionBarActivity implements
                 location.setLatitude(latLng.latitude);
                 location.setLongitude(latLng.longitude);
 
-                placeMarkerOnMap(location, false);
+                if (mapLoaded)
+                    placeMarkerOnMap(location, false);
 
                 mCurrentLocation.stopLocationUpdates();
             }
@@ -236,10 +237,21 @@ public class MainActivity extends ActionBarActivity implements
 
         if (mParkingInfo.isSFParkDataReady())
             mParkingInfo.highlightStreet(showOnStreetParking, showOffStreetParking);
+
+        trackDeviceLocation(null);
     }
 
     /**
-     * Show the warning timer window.
+     * Return true if the map is loaded, otherwise false.
+     * @return true if the map is loaded, otherwise false
+     */
+    public boolean isMapLoaded() {
+        return mapLoaded;
+    }
+
+    /**
+     * Show the warning timer window that allow the user to select how long they want to park
+     * at that specific location.
      * @param view the view of the application
      */
     public void showWarningTimerWindow(View view) {
@@ -265,17 +277,6 @@ public class MainActivity extends ActionBarActivity implements
         }
 
         mTimerWindow.showAtLocation(timerView, Gravity.CENTER, 0, 0);
-
-    //    mWarningTimer.showWindow();
-/*
-        TimePickerDialog timePickerDialog = new TimePickerDialog(this, new TimePickerDialog.OnTimeSetListener() {
-
-            @Override
-            public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
-            }
-        }, 0, 0, true);
-
-        timePickerDialog.show();*/
     }
 
     public void setWarningTimer(View view) {
@@ -296,7 +297,7 @@ public class MainActivity extends ActionBarActivity implements
      */
     public void trackDeviceLocation(View view) {
 
-        // Start tracking
+        // Start location tracking
         mCurrentLocation.startLocationUpdates();
 
         // If the GPS is available, then get the current location of the device
@@ -304,22 +305,22 @@ public class MainActivity extends ActionBarActivity implements
 
             Location location = mCurrentLocation.getLocation();
 
-            if (location != null) {
+            if (location != null && mapLoaded) {
                 placeMarkerOnMap(location, true);
             }
 
         } else {
             // Otherwise just get the last known location that is stored in the database
 
-            String[] location = mCurrentLocation.getLastKnownLocation();
+            if (mapLoaded) {
+                String[] location = mCurrentLocation.getLastKnownLocation();
 
-         //   double latitude = Double.parseDouble(location[1]);
-         //   double longitude = Double.parseDouble(location[2]);
-            Location loc = new Location(location[0]);
-            loc.setLatitude(Double.parseDouble(location[1]));
-            loc.setLongitude(Double.parseDouble(location[2]));
+                Location loc = new Location(location[0]);
+                loc.setLatitude(Double.parseDouble(location[1]));
+                loc.setLongitude(Double.parseDouble(location[2]));
 
-            placeMarkerOnMap(loc, true);
+                placeMarkerOnMap(loc, true);
+            }
         }
     }
 
@@ -351,14 +352,14 @@ public class MainActivity extends ActionBarActivity implements
                     Location current = new Location(mCLMarker.getTitle());
 
                     // If the next location is less than 10 meters away, then animate to that new location
-  //                  if (current.distanceTo(location) <= 10f) {
+                    if (current.distanceTo(location) <= 10f) {
                         animateMarker(current, location);
-  //                  } else {
-  //                      // Otherwise just move the marker to that new location without animation
-  //                      mCLMarker.setPosition(new LatLng(location.getLatitude(), location.getLongitude()));
+                    } else {
+                        // Otherwise just move the marker to that new location without animation
+                        mCLMarker.setPosition(new LatLng(location.getLatitude(), location.getLongitude()));
                         mCLMarker.setRotation(mMarkerRotation);
-  //                      mCLMarkerCircle.setCenter(new LatLng(location.getLatitude(), location.getLongitude()));
-  //                  }
+                        mCLMarkerCircle.setCenter(new LatLng(location.getLatitude(), location.getLongitude()));
+                    }
 
                 } else {
                     // Create the marker
