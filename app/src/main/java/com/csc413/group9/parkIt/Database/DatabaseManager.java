@@ -25,18 +25,35 @@ import android.database.sqlite.SQLiteDatabase;
  */
 public class DatabaseManager {
 
+    /**
+     * The instance of this class (DatabaseManager).
+     */
     private static DatabaseManager instance;
+
+    /**
+     * The database helper.
+     */
     private static DatabaseHelper mDatabaseHelper;
+
+    /**
+     * The SQLite database.
+     */
     private SQLiteDatabase mDatabase;
 
-    private int mOpenCounter;               // Number of connections opened
+    /**
+     * Number of database connections opened.
+     */
+    private int mOpenCounter;
 
+    /**
+     * No-args constructor (Default constructor).
+     */
     private DatabaseManager() {
         // Default constructor
     }
 
     /**
-     * Initialize this class.
+     * Initialize the DatabaseManager.
      * @param context The context of the application
      */
     public static synchronized void initializeInstance(Context context) {
@@ -50,7 +67,7 @@ public class DatabaseManager {
     }
 
     /**
-     * Get the instance of this class.
+     * Get the instance of this class (DatabaseManager).
      * @return the instance of this class
      */
     public static synchronized DatabaseManager getInstance() {
@@ -72,6 +89,7 @@ public class DatabaseManager {
 
         mOpenCounter++;
 
+        // Only open a connection to the database if no other threads are using it
         if(mOpenCounter == 1) {
             // Opening new database
             mDatabase = mDatabaseHelper.getWritableDatabase();
@@ -103,8 +121,10 @@ public class DatabaseManager {
 
         SQLiteDatabase db = DatabaseManager.getInstance().open();
 
+        // Select every rows in the table
         String count = "SELECT count(*) FROM " + tableName;
 
+        // Move the cursor to the first row in the table
         Cursor cursor = db.rawQuery(count, null);
         cursor.moveToFirst();
 

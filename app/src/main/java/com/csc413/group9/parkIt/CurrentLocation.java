@@ -22,21 +22,52 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * A class that represent the current location of the device.
+ * The current location of the device. The client can set whether to keep on tracking the current
+ * location of the device or not.
  *
  * Created by Su Khai Koh on 4/17/15.
  */
 public class CurrentLocation extends Service implements LocationListener {
 
-    private static final long MIN_TIME = 1000 * 5;      // Min time to get location update, 5 seconds
-    private static final long MIN_DISTANCE = 2;         // Min distance to get location update, 2 meters
+    /**
+     * The minimum time before getting a new location update. (5 seconds)
+     */
+    private static final long MIN_TIME = 1000 * 5;
 
+    /**
+     * The minimum distance before getting a new location update. (2 meters)
+     */
+    private static final long MIN_DISTANCE = 2;
+
+    /**
+     * The main activity.
+     */
     private final MainActivity mMainActivity;
-    private Location mLocation;
-    private LocationManager mLocationManager;
-    private boolean canGetLocation = false;             // Flag for network and GPS status
-    private boolean keepTrack = true;                   // Flag for keeping track on device's location
 
+    /**
+     * The location of the device.
+     */
+    private Location mLocation;
+
+    /**
+     * The system location manager.
+     */
+    private LocationManager mLocationManager;
+
+    /**
+     * Flag for network and GPS status.
+     */
+    private boolean canGetLocation = false;
+
+    /**
+     * Flag for keeping track on device's location.
+     */
+    private boolean keepTrack = true;
+
+    /**
+     * Setup class members.
+     * @param mainActivity the main activity of this application
+     */
     public CurrentLocation(MainActivity mainActivity) {
 
         mMainActivity = mainActivity;
