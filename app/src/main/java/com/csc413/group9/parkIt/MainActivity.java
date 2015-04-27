@@ -22,10 +22,11 @@ import android.view.ViewGroup.LayoutParams;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.Interpolator;
 import android.widget.PopupWindow;
+import android.widget.TimePicker;
 import android.widget.Toast;
 
 import com.csc413.group9.parkIt.Database.DatabaseManager;
-import com.csc413.group9.parkIt.Features.WarningTimer;
+import com.csc413.group9.parkIt.Features.WarningTimer.WarningTimer;
 import com.csc413.group9.parkIt.SFPark.ParkingInformation;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
@@ -62,7 +63,8 @@ public class MainActivity extends ActionBarActivity implements
     private ParkingInformation mParkingInfo;
     private CurrentLocation mCurrentLocation;
     private WarningTimer mWarningTimer;
-    private PopupWindow timerWindow;
+    private PopupWindow mTimerWindow;
+    private TimePicker mTimePicker;
     private SensorManager mSensorManager;
     private float mMarkerRotation;
     private boolean mapLoaded = false;
@@ -90,7 +92,9 @@ public class MainActivity extends ActionBarActivity implements
         buildGoogleMap();
 
         mParkingInfo = new ParkingInformation(this, mMap);
+
         mWarningTimer = new WarningTimer(this);
+        mWarningTimer.bindService();
     }
 
     /**
@@ -165,6 +169,16 @@ public class MainActivity extends ActionBarActivity implements
     }
 
     @Override
+    protected void onStop() {
+
+        if (mWarningTimer != null) {
+            mWarningTimer.unBindService();
+        }
+
+        super.onStop();
+    }
+
+    @Override
     public void onConnected(Bundle dataBundle) {
 
         trackDeviceLocation(null);
@@ -233,15 +247,24 @@ public class MainActivity extends ActionBarActivity implements
         LayoutInflater layoutInflater = (LayoutInflater) getBaseContext().getSystemService(LAYOUT_INFLATER_SERVICE);
         final View timerView = layoutInflater.inflate(R.layout.window_warning_timer, null);
 
-        if (timerWindow == null) {
+        if (mTimerWindow == null) {
 
-            timerWindow = new PopupWindow(
+            mTimerWindow = new PopupWindow(
                     timerView,
                     LayoutParams.WRAP_CONTENT,
                     LayoutParams.WRAP_CONTENT);
+
+            mTimePicker = (TimePicker) timerView.findViewById(R.id.timepicker_warning_timer);
+            mTimePicker.setIs24HourView(true);
+            mTimePicker.setOnTimeChangedListener(new TimePicker.OnTimeChangedListener() {
+                @Override
+                public void onTimeChanged(TimePicker view, int hourOfDay, int minuteOfDay) {
+                    mWarningTimer.setTime(hourOfDay, minuteOfDay);
+                }
+            });
         }
 
-        timerWindow.showAtLocation(timerView, Gravity.CENTER, 0, 0);
+        mTimerWindow.showAtLocation(timerView, Gravity.CENTER, 0, 0);
 
     //    mWarningTimer.showWindow();
 /*
@@ -256,12 +279,14 @@ public class MainActivity extends ActionBarActivity implements
     }
 
     public void setWarningTimer(View view) {
-        mWarningTimer.setWarningTimer();
 
+        mWarningTimer.setWarningTime();
+
+        mTimerWindow.dismiss();
     }
 
     public void cancelWarningTimer(View view) {
-        timerWindow.dismiss();
+        mTimerWindow.dismiss();
     }
 
     /**
@@ -326,14 +351,14 @@ public class MainActivity extends ActionBarActivity implements
                     Location current = new Location(mCLMarker.getTitle());
 
                     // If the next location is less than 10 meters away, then animate to that new location
-                    if (current.distanceTo(location) <= 10f) {
+  //                  if (current.distanceTo(location) <= 10f) {
                         animateMarker(current, location);
-                    } else {
-                        // Otherwise just move the marker to that new location without animation
-                        mCLMarker.setPosition(new LatLng(location.getLatitude(), location.getLongitude()));
+  //                  } else {
+  //                      // Otherwise just move the marker to that new location without animation
+  //                      mCLMarker.setPosition(new LatLng(location.getLatitude(), location.getLongitude()));
                         mCLMarker.setRotation(mMarkerRotation);
-                        mCLMarkerCircle.setCenter(new LatLng(location.getLatitude(), location.getLongitude()));
-                    }
+  //                      mCLMarkerCircle.setCenter(new LatLng(location.getLatitude(), location.getLongitude()));
+  //                  }
 
                 } else {
                     // Create the marker
@@ -399,8 +424,8 @@ public class MainActivity extends ActionBarActivity implements
         // Animate using interpolator
         final Interpolator interpolator = new AccelerateDecelerateInterpolator();
 
-        // Complete the animation over 1s
-        final float durationInMs = 1000;
+        // Complete the animation over 1.5s
+        final float durationInMs = 1500;
 
         final Handler handler = new Handler();
 
@@ -448,8 +473,12 @@ public class MainActivity extends ActionBarActivity implements
         }
 
         if (addresses != null && addresses.size() > 0) {
-            String address = addresses.get(0).getAddressLine(0);
-            String postalCode = addresses.get(0).getPostalCode().split(" ")[0];
+
+            String address = addresses.get(0).getAddressLine(0) == null ? "" :
+                             addresses.get(0).getAddressLine(0);
+
+            String postalCode = addresses.get(0).getPostalCode() == null ? "" :
+                                addresses.get(0).getPostalCode().split(" ")[0];
 
             addr = address + ", " + postalCode;
         }

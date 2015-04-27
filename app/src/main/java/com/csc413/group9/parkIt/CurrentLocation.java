@@ -280,10 +280,13 @@ public class CurrentLocation extends Service implements LocationListener {
         }
 
         if (addresses != null && addresses.size() > 0) {
-            String address = addresses.get(0).getAddressLine(0);
-            String city = getCity(addresses.get(0).getAddressLine(1));
-            String postalCode = addresses.get(0).getPostalCode().split(" ")[0];
-            String country = addresses.get(0).getCountryName();
+
+            Address fullAddress = addresses.get(0);
+
+            String address = fullAddress.getAddressLine(0) == null? "" : addresses.get(0).getAddressLine(0);
+            String city = fullAddress.getAddressLine(1) == null ? "" : getCity(addresses.get(0).getAddressLine(1));
+            String postalCode = fullAddress.getPostalCode() == null ? "" : addresses.get(0).getPostalCode().split(" ")[0];
+            String country = fullAddress.getCountryName() == null ? "" : addresses.get(0).getCountryName();
 
             addr = address + ", " + city + ", " + postalCode + ", " + country;
         }
