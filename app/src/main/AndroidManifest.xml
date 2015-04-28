@@ -26,17 +26,22 @@
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="GOOGLE MAP API KEY"/>
+            android:value="Google Map API Key"/>
 
         <activity
             android:name="com.csc413.group9.parkIt.MainActivity"
-            android:label="@string/app_name" >
+            android:label="@string/app_name"
+            android:launchMode = "singleInstance">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service android:name=".Features.WarningTimer.TimerNotificationScheduler" />
+        <service android:name=".Features.WarningTimer.TimerNotificationService" />
+
     </application>
 
 </manifest>
