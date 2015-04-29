@@ -183,7 +183,7 @@ public class ParkingInformation {
                 PolylineOptions lineOptions = new PolylineOptions()
                         .add(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()))
                         .add(new LatLng(locations[1].getLatitude(), locations[1].getLongitude()))
-                        .color(new Color(153,50,204))
+                        .color(Color.GREEN)
                         .width(5f)
                         .visible(false);
 
