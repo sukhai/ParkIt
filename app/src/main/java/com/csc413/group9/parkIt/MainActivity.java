@@ -22,6 +22,9 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
+import android.view.inputmethod.InputMethod;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
 import android.widget.PopupWindow;
 import android.widget.TimePicker;
 import android.widget.Toast;
@@ -33,6 +36,7 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.Projection;
@@ -500,5 +504,39 @@ public class MainActivity extends ActionBarActivity implements
             GooglePlayServicesUtil.getErrorDialog(resultCode, this, 0).show();
             return false;
         }
+    }
+
+    public void geolocate(View v) throws IOException {
+
+        hideKeyboard(v);
+        EditText et = (EditText) findViewById(R.id.searchLocation);
+        String location = et.getText().toString(); //it returns the input the user typed in
+        Geocoder gc = new Geocoder(this); //locate the location [Google Maps feature]
+
+        //returns list of address from the literal location
+        List<Address> addressList = gc.getFromLocationName(location, 1); //1 means gives you 1 address
+        Address address = addressList.get(0); //that 1 address would be the first one from the list
+        double lat = address.getLatitude(); //gets the latitude from the address
+        double log = address.getLongitude(); //gets the longtitude from the address
+        et.setText(""); //reset to empty the text field
+        gotoLocation(lat, log, location); //go to that location
+
+
+    }
+
+    //hides keyboard
+    private void hideKeyboard(View v) {
+        InputMethodManager imm = (InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+    }
+
+    //class that go to the searched location
+    private void gotoLocation(double lat, double log, String location) {
+        LatLng mCurrentLatLng = new LatLng(lat, log); //constructor
+
+        //Camera updates
+        CameraUpdate update = CameraUpdateFactory.newLatLngZoom(mCurrentLatLng, CAMERA_ZOOM_LEVEL);
+        mMap.moveCamera(update); //motion event to move the camera (can use animate)
+        mMap.addMarker(new MarkerOptions().position(mCurrentLatLng).title(location)); //puts marker
     }
 }

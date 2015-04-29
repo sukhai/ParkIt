@@ -1,40 +1,81 @@
-<RelativeLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     tools:context=".MainActivity">
 
-    <fragment
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Search"
+            android:layout_gravity="left|center_vertical"/>
+
+        <EditText
+            android:id="@+id/searchLocation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center|center_vertical"
+            android:ems="12"/>
+
+        <Button
+            android:id="@+id/searchButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="right|center_vertical"
+            android:text="Go!"
+            android:onClick="geolocate"/>
+
+
+
+
+    </LinearLayout>
+
+    <RelativeLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:tools="http://schemas.android.com/tools"
-        android:id="@+id/map"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:name="com.google.android.gms.maps.SupportMapFragment"/>
+        tools:context=".MainActivity">
 
-    <ImageButton
-        android:id="@+id/btn_currentLocation"
-        android:src="@drawable/btn_locator"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:background="#00ffffff"
-        android:layout_marginRight="10dp"
-        android:layout_marginBottom="10dp"
-        android:onClick="trackDeviceLocation" />
+        <fragment
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:tools="http://schemas.android.com/tools"
+            android:id="@+id/map"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:name="com.google.android.gms.maps.SupportMapFragment"/>
 
-    <ImageButton
-        android:id="@+id/btn_warning_timer"
-        android:src="@drawable/btn_locator"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentRight="true"
-        android:layout_marginRight="10dp"
-        android:background="#00ffffff"
-        android:onClick="showWarningTimerWindow"/>
+        <ImageButton
+            android:id="@+id/btn_currentLocation"
+            android:src="@drawable/btn_locator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true"
+            android:background="#00ffffff"
+            android:layout_marginRight="10dp"
+            android:layout_marginBottom="10dp"
+            android:onClick="trackDeviceLocation" />
 
-</RelativeLayout>
+        <ImageButton
+            android:id="@+id/btn_warning_timer"
+            android:src="@drawable/hourglass"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#00ffffff"
+            android:onClick="showWarningTimerWindow"
+            android:layout_above="@+id/btn_currentLocation"
+            android:layout_alignLeft="@+id/btn_currentLocation"
+            android:layout_alignStart="@+id/btn_currentLocation" />
+
+    </RelativeLayout>
+
+</LinearLayout>
