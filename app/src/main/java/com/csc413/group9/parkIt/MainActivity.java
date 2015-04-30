@@ -25,6 +25,7 @@ import android.view.animation.LinearInterpolator;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.PopupWindow;
+import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
@@ -72,6 +73,7 @@ public class MainActivity extends ActionBarActivity implements
     private TimePicker mTimePicker;
     private SensorManager mSensorManager;
     private float mMarkerRotation;
+    private boolean mInfoWindowIsShown = false;
     private boolean mapLoaded = false;
     private boolean showPrice = true;
     private boolean showOnStreetParking = true;
@@ -124,6 +126,23 @@ public class MainActivity extends ActionBarActivity implements
                 mCurrentLocation.stopLocationUpdates();
             }
         });
+
+        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+
+                if (mInfoWindowIsShown) {
+                    mInfoWindowIsShown = false;
+                    marker.hideInfoWindow();
+                    return true;
+                } else {
+                    mInfoWindowIsShown = true;
+                    return false;
+                }
+            }
+        });
+
+        mMap.setInfoWindowAdapter(new CustomInfoWindowAdapter());
 
         mMap.setOnMapLoadedCallback(this);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(SF_LATITUDE, SF_LONGITUDE), 10));
@@ -380,6 +399,7 @@ public class MainActivity extends ActionBarActivity implements
                 } else {
                     // Create the marker
                     mCLMarker = mMap.addMarker(new MarkerOptions()
+                            .title("")
                             .position(new LatLng(location.getLatitude(), location.getLongitude()))
                             .rotation(mMarkerRotation)
                             .anchor(0.5f, 0.75f)
@@ -541,5 +561,57 @@ public class MainActivity extends ActionBarActivity implements
         CameraUpdate update = CameraUpdateFactory.newLatLngZoom(mCurrentLatLng, CAMERA_ZOOM_LEVEL);
         mMap.moveCamera(update); //motion event to move the camera (can use animate)
         mMap.addMarker(new MarkerOptions().position(mCurrentLatLng).title(location)); //puts marker
+    }
+
+    private class CustomInfoWindowAdapter implements GoogleMap.InfoWindowAdapter {
+
+        private View mView;
+
+        CustomInfoWindowAdapter() {
+            mView = getLayoutInflater().inflate(R.layout.window_parking_info, null);
+        }
+
+        @Override
+        public View getInfoWindow(Marker marker) {
+
+            // If the title is an empty string, such as from the mCLMarker, then
+            // we don't show any InfoWindow
+            if (marker.getTitle().equals(""))
+                return null;
+
+            // Set the title for the InfoWindow
+            TextView title = ((TextView) mView.findViewById(R.id.parking_name));
+            title.setText(marker.getTitle());
+
+            String snippet = marker.getSnippet();
+
+            if (snippet != null) {
+
+                // Parse out the marker's snippet into address and rate
+                String address = "";
+                String rate = "";
+                for (int i = 0; i < snippet.length(); i++) {
+                    if (snippet.charAt(i) == '%') {
+                        address = snippet.substring(0, i);
+                        rate = snippet.substring(i + 1, snippet.length());
+                        break;
+                    }
+                }
+
+                TextView textAddress = ((TextView) mView.findViewById(R.id.parking_address));
+                textAddress.setText(address);
+
+                TextView textRate = ((TextView) mView.findViewById(R.id.parking_snippet));
+                textRate.setText(rate);
+            }
+
+            return mView;
+        }
+
+        @Override
+        public View getInfoContents(Marker marker) {
+            // We want getInfoWindow(...) to set our custom info window, so return null here
+            return null;
+        }
     }
 }
