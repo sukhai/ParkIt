@@ -22,7 +22,6 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
-import android.view.inputmethod.InputMethod;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.PopupWindow;
@@ -172,6 +171,10 @@ public class MainActivity extends ActionBarActivity implements
 
             mCurrentLocation.stopLocationUpdates();
             mGoogleApiClient.disconnect();
+        }
+
+        if (mTimerWindow != null) {
+            mTimerWindow.dismiss();
         }
     }
 
