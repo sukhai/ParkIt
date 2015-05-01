@@ -1,10 +1,10 @@
 package com.csc413.group9.parkIt.SFPark;
 
+import android.app.ProgressDialog;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.text.format.DateUtils;
-import android.widget.Toast;
 
 import com.csc413.group9.parkIt.MainActivity;
 import com.csc413.group9.parkIt.R;
@@ -391,13 +391,21 @@ public class ParkingInformation {
      */
     private class LoadSFParkDataTask extends AsyncTask<String, Void, Void> {
 
+        ProgressDialog progressDialog;
+
         @Override
         protected void onPreExecute() {
-            // Show a message saying this app is fetching data
-            Toast.makeText(mMainActivity,
-                    "Fetching data ...",
-                    Toast.LENGTH_SHORT)
-                    .show();
+
+            try {
+                progressDialog = new ProgressDialog(mMainActivity);
+                progressDialog.setTitle("Please wait");
+                progressDialog.setMessage("Displaying parking data ...");
+                progressDialog.show();
+                progressDialog.setCancelable(false);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         @Override
@@ -413,24 +421,14 @@ public class ParkingInformation {
         @Override
         protected void onPostExecute(Void unused) {
 
-            try {
+            initializeOnStreetParking();
+            initializeOffStreetParking();
 
-                // Show a message saying this app is fetching data
-                Toast.makeText(mMainActivity,
-                        "Displaying data ...",
-                        Toast.LENGTH_SHORT)
-                        .show();
+            sfParkDataReady = true;
 
-                initializeOnStreetParking();
-                initializeOffStreetParking();
+            highlightStreet(true, true);
 
-                sfParkDataReady = true;
-
-                highlightStreet(true, true);
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            progressDialog.dismiss();
         }
     }
 
