@@ -584,26 +584,31 @@ public class MainActivity extends ActionBarActivity implements
             title.setText(marker.getTitle());
 
             String snippet = marker.getSnippet();
+            String address = null;
+            String rate = null;
 
-            if (snippet != null) {
-
-                // Parse out the marker's snippet into address and rate
-                String address = "";
-                String rate = "";
-                for (int i = 0; i < snippet.length(); i++) {
-                    if (snippet.charAt(i) == '%') {
-                        address = snippet.substring(0, i);
-                        rate = snippet.substring(i + 1, snippet.length());
-                        break;
-                    }
-                }
-
-                TextView textAddress = ((TextView) mView.findViewById(R.id.parking_address));
-                textAddress.setText(address);
-
-                TextView textRate = ((TextView) mView.findViewById(R.id.parking_snippet));
-                textRate.setText(rate);
+            if (snippet == null) {
+                // This marker is a clicked marker on the map, and it's not the marker for
+                // garage parking, so we just use default InfoWindow
+                return null;
             }
+
+            // Now we know this is the garage parking marker, it must have address and rate,
+            // so we parse out the marker's snippet into address and rate
+            // The address and rate is separate by '%' character
+            for (int i = 0; i < snippet.length(); i++) {
+                if (snippet.charAt(i) == '%') {
+                    address = snippet.substring(0, i);
+                    rate = snippet.substring(i + 1, snippet.length());
+                    break;
+                }
+            }
+
+            TextView textAddress = ((TextView) mView.findViewById(R.id.parking_address));
+            textAddress.setText(address);
+
+            TextView textRate = ((TextView) mView.findViewById(R.id.parking_snippet));
+            textRate.setText(rate);
 
             return mView;
         }
