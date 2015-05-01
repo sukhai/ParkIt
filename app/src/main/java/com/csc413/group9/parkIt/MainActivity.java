@@ -61,8 +61,10 @@ public class MainActivity extends ActionBarActivity implements
     private static final double SF_LATITUDE = 37.7833;
     private static final double SF_LONGITUDE = -122.4167;
     private static final float CAMERA_ZOOM_LEVEL = 18f;
+
     private GoogleMap mMap;
     private Marker mClickedLocationMarker;
+    private Marker mParkingGarageMarker;
     private Marker mCLMarker;
     private Circle mCLMarkerCircle;
     private GoogleApiClient mGoogleApiClient;
@@ -131,11 +133,46 @@ public class MainActivity extends ActionBarActivity implements
             @Override
             public boolean onMarkerClick(Marker marker) {
 
+                if (marker.getSnippet() != null) {      // It's a garage parking marker
+
+                    if (mClickedLocationMarker != null) {
+                        mClickedLocationMarker.remove();
+                    }
+
+                } else {        // It's a random clicked location marker on the map
+
+                    // If it is a different marker than the previously stored marker, remove it
+                    if (mClickedLocationMarker != null && !mClickedLocationMarker.equals(marker))
+                        mClickedLocationMarker.remove();
+
+                    mClickedLocationMarker = marker;
+                }
+
                 if (mInfoWindowIsShown) {
                     mInfoWindowIsShown = false;
                     marker.hideInfoWindow();
+
+                    // If this is the same parking garage marker that has been clicked, do nothing
+                    if (mParkingGarageMarker != null && mParkingGarageMarker.equals(marker)) {
+                        return true;
+
+                    // If this is a different parking garage marker, hide the current InfoWindow and
+                    // show the new parking garage marker's InfoWindow
+                    } else if (mParkingGarageMarker != null && marker.getSnippet() != null) {
+                        mParkingGarageMarker.hideInfoWindow();
+                        mParkingGarageMarker = marker;
+                        return false;
+
+                    // If this is the first time user click on any parking garage marker, set this
+                    // marker as the parking garage marker
+                    } else if (mParkingGarageMarker == null && marker.getSnippet() != null) {
+                        mParkingGarageMarker = marker;
+                        return true;
+                    }
+
                     return true;
                 } else {
+                    // No InfoWindow is shown on any of the markers on the map, so show it
                     mInfoWindowIsShown = true;
                     return false;
                 }
@@ -255,7 +292,6 @@ public class MainActivity extends ActionBarActivity implements
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
     }
 
     @Override
@@ -424,7 +460,9 @@ public class MainActivity extends ActionBarActivity implements
                     mCLMarkerCircle.setVisible(false);
                 }
 
-                if (mClickedLocationMarker != null)
+                // We only want to remove the marker that is clicked on the map by the user, not
+                // the garage parking marker
+                if (mClickedLocationMarker != null && mClickedLocationMarker.getSnippet() == null)
                     mClickedLocationMarker.remove();
 
                 mClickedLocationMarker = mMap.addMarker(new MarkerOptions()
