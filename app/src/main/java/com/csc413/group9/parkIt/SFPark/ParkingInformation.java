@@ -7,6 +7,7 @@ import android.text.format.DateUtils;
 import android.widget.Toast;
 
 import com.csc413.group9.parkIt.MainActivity;
+import com.csc413.group9.parkIt.R;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
@@ -52,7 +53,7 @@ public class ParkingInformation {
     private static final int SOCKET_BUFFER_SIZE = 8192;
 
     // Request parameters
-    private static final String RADIUS = "100.0";               // 100 miles within the SFPark default latitude and longitude
+    private static final String RADIUS = "1000.0";              // 100 miles within the SFPark default latitude and longitude
     private static final String RESPONSE = "json";              // Request data in JSON format
     private static final String VERSION = "1.0";                // SFPark data version
 
@@ -206,12 +207,33 @@ public class ParkingInformation {
     private void initializeOffStreetParking() {
 
         MarkerOptions markerOptions = new MarkerOptions()
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_offstreet_parking))
                 .visible(false);
 
         for (int i = 0; i < offStreetParkings.size(); i++) {
-            Location[] locations = offStreetParkings.get(i).getLocation();
+
+            ParkingLocation location = offStreetParkings.get(i);
+
+            String name = location.getName();
+            String description = location.getDescription();
+            ParkingLocation.RateSchedule[] rateSchedules = location.getRateSchedule();
+            StringBuilder snippet = new StringBuilder();
+
+            for (int j = 0; j < rateSchedules.length; j++) {
+
+                ParkingLocation.RateSchedule rate = rateSchedules[j];
+
+                if (!rate.getBeginTime().equals("")) {
+                    snippet.append(rate.getBeginTime() + "-" + rate.getEndTime() + " : $" +
+                            rate.getRate() + " " + rate.getRateQualifier() + "\n");
+                }
+            }
+
+            Location[] locations = location.getLocation();
+
             markerOptions.position(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()));
+            markerOptions.title(name);
+            markerOptions.snippet(description + "%" + snippet);
 
             offStreetParkingIcons.add(mMap.addMarker(markerOptions));
         }

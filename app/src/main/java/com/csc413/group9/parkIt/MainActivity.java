@@ -25,6 +25,7 @@ import android.view.animation.LinearInterpolator;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.PopupWindow;
+import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
@@ -60,8 +61,10 @@ public class MainActivity extends ActionBarActivity implements
     private static final double SF_LATITUDE = 37.7833;
     private static final double SF_LONGITUDE = -122.4167;
     private static final float CAMERA_ZOOM_LEVEL = 18f;
+
     private GoogleMap mMap;
     private Marker mClickedLocationMarker;
+    private Marker mParkingGarageMarker;
     private Marker mCLMarker;
     private Circle mCLMarkerCircle;
     private GoogleApiClient mGoogleApiClient;
@@ -72,6 +75,7 @@ public class MainActivity extends ActionBarActivity implements
     private TimePicker mTimePicker;
     private SensorManager mSensorManager;
     private float mMarkerRotation;
+    private boolean mInfoWindowIsShown = false;
     private boolean mapLoaded = false;
     private boolean showPrice = true;
     private boolean showOnStreetParking = true;
@@ -124,6 +128,58 @@ public class MainActivity extends ActionBarActivity implements
                 mCurrentLocation.stopLocationUpdates();
             }
         });
+
+        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+
+                if (marker.getSnippet() != null) {      // It's a garage parking marker
+
+                    if (mClickedLocationMarker != null) {
+                        mClickedLocationMarker.remove();
+                    }
+
+                } else {        // It's a random clicked location marker on the map
+
+                    // If it is a different marker than the previously stored marker, remove it
+                    if (mClickedLocationMarker != null && !mClickedLocationMarker.equals(marker))
+                        mClickedLocationMarker.remove();
+
+                    mClickedLocationMarker = marker;
+                }
+
+                if (mInfoWindowIsShown) {
+                    mInfoWindowIsShown = false;
+                    marker.hideInfoWindow();
+
+                    // If this is the same parking garage marker that has been clicked, do nothing
+                    if (mParkingGarageMarker != null && mParkingGarageMarker.equals(marker)) {
+                        return true;
+
+                    // If this is a different parking garage marker, hide the current InfoWindow and
+                    // show the new parking garage marker's InfoWindow
+                    } else if (mParkingGarageMarker != null && marker.getSnippet() != null) {
+                        mParkingGarageMarker.hideInfoWindow();
+                        mParkingGarageMarker = marker;
+                        return false;
+
+                    // If this is the first time user click on any parking garage marker, set this
+                    // marker as the parking garage marker
+                    } else if (mParkingGarageMarker == null && marker.getSnippet() != null) {
+                        mParkingGarageMarker = marker;
+                        return true;
+                    }
+
+                    return true;
+                } else {
+                    // No InfoWindow is shown on any of the markers on the map, so show it
+                    mInfoWindowIsShown = true;
+                    return false;
+                }
+            }
+        });
+
+        mMap.setInfoWindowAdapter(new CustomInfoWindowAdapter());
 
         mMap.setOnMapLoadedCallback(this);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(SF_LATITUDE, SF_LONGITUDE), 10));
@@ -236,7 +292,6 @@ public class MainActivity extends ActionBarActivity implements
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
     }
 
     @Override
@@ -380,6 +435,7 @@ public class MainActivity extends ActionBarActivity implements
                 } else {
                     // Create the marker
                     mCLMarker = mMap.addMarker(new MarkerOptions()
+                            .title("")
                             .position(new LatLng(location.getLatitude(), location.getLongitude()))
                             .rotation(mMarkerRotation)
                             .anchor(0.5f, 0.75f)
@@ -404,7 +460,9 @@ public class MainActivity extends ActionBarActivity implements
                     mCLMarkerCircle.setVisible(false);
                 }
 
-                if (mClickedLocationMarker != null)
+                // We only want to remove the marker that is clicked on the map by the user, not
+                // the garage parking marker
+                if (mClickedLocationMarker != null && mClickedLocationMarker.getSnippet() == null)
                     mClickedLocationMarker.remove();
 
                 mClickedLocationMarker = mMap.addMarker(new MarkerOptions()
@@ -541,5 +599,62 @@ public class MainActivity extends ActionBarActivity implements
         CameraUpdate update = CameraUpdateFactory.newLatLngZoom(mCurrentLatLng, CAMERA_ZOOM_LEVEL);
         mMap.moveCamera(update); //motion event to move the camera (can use animate)
         mMap.addMarker(new MarkerOptions().position(mCurrentLatLng).title(location)); //puts marker
+    }
+
+    private class CustomInfoWindowAdapter implements GoogleMap.InfoWindowAdapter {
+
+        private View mView;
+
+        CustomInfoWindowAdapter() {
+            mView = getLayoutInflater().inflate(R.layout.window_parking_info, null);
+        }
+
+        @Override
+        public View getInfoWindow(Marker marker) {
+
+            // If the title is an empty string, such as from the mCLMarker, then
+            // we don't show any InfoWindow
+            if (marker.getTitle().equals(""))
+                return null;
+
+            // Set the title for the InfoWindow
+            TextView title = ((TextView) mView.findViewById(R.id.parking_name));
+            title.setText(marker.getTitle());
+
+            String snippet = marker.getSnippet();
+            String address = null;
+            String rate = null;
+
+            if (snippet == null) {
+                // This marker is a clicked marker on the map, and it's not the marker for
+                // garage parking, so we just use default InfoWindow
+                return null;
+            }
+
+            // Now we know this is the garage parking marker, it must have address and rate,
+            // so we parse out the marker's snippet into address and rate
+            // The address and rate is separate by '%' character
+            for (int i = 0; i < snippet.length(); i++) {
+                if (snippet.charAt(i) == '%') {
+                    address = snippet.substring(0, i);
+                    rate = snippet.substring(i + 1, snippet.length());
+                    break;
+                }
+            }
+
+            TextView textAddress = ((TextView) mView.findViewById(R.id.parking_address));
+            textAddress.setText(address);
+
+            TextView textRate = ((TextView) mView.findViewById(R.id.parking_snippet));
+            textRate.setText(rate);
+
+            return mView;
+        }
+
+        @Override
+        public View getInfoContents(Marker marker) {
+            // We want getInfoWindow(...) to set our custom info window, so return null here
+            return null;
+        }
     }
 }
