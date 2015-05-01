@@ -61,6 +61,26 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      */
     public static final String COLUMN_LOCATION_LONGITUDE = "Longitude";
 
+    /**
+     * The table name for parked location data.
+     */
+    public static final String TABLE_NAME_PARKED = "Parked";
+
+    /**
+     * The column for the parked location address data.
+     */
+    public static final String COLUMN_PARKED_ADDRESS = "Address";
+
+    /**
+     * The column for the parked location latitude data.
+     */
+    public static final String COLUMN_PARKED_LATITUDE = "Latitude";
+
+    /**
+     * The column for the parked location longitude data.
+     */
+    public static final String COLUMN_PARKED_LONGITUDE = "Longitude";
+
     // Columns and table of the recent searched location table
     public static final int RECENT_LOCATION_MAX_ENTRIES = 5;
     public static final String TABLE_NAME_RECENT = "Recent";
@@ -70,10 +90,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COLUMN_RECENT_LATITUDE = "Latitude";
     public static final String COLUMN_RECENT_LONGITUDE = "Longitude";
 
-    // Constants
+    /**
+     * Text type data.
+     */
     private static final String TEXT_TYPE = " TEXT NOT NULL";
+
+    /**
+     * Real number type data.
+     */
     private static final String REAL_TYPE = " REAL NOT NULL";
+
+    /**
+     * Comma ','.
+     */
     private static final String COMMA = ",";
+
+    /**
+     * The SQL statement that drop the table if the table exists.
+     */
     private static final String DROP_TABLE = "DROP TABLE IF EXISTS ";
 
     /**
@@ -92,6 +126,23 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      */
     private static final String SQL_DELETE_TABLE_LOCATION =
             DROP_TABLE + TABLE_NAME_LOCATION;
+
+    /**
+     * The SQL statement that create a table for user's parked location data.
+     */
+    private static final String SQL_CREATE_TABLE_PARKED =
+            "CREATE TABLE " + TABLE_NAME_PARKED + " (" +
+                    COLUMN_ID + " INTEGER PRIMARY KEY, " +
+                    COLUMN_PARKED_ADDRESS + TEXT_TYPE + COMMA +
+                    COLUMN_PARKED_LATITUDE + REAL_TYPE + COMMA +
+                    COLUMN_PARKED_LONGITUDE + REAL_TYPE +
+                    " )";
+
+    /**
+     * The SQL statement that delete the table for user's parked location table.
+     */
+    private static final String SQL_DELETE_TABLE_PARKED =
+            DROP_TABLE + TABLE_NAME_PARKED;
 
     // SQL statement of the recent searched location table
     private static final String SQL_CREATE_TABLE_RECENT =
@@ -129,6 +180,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase db) {
 
         db.execSQL(SQL_CREATE_TABLE_LOCATION);
+        db.execSQL(SQL_CREATE_TABLE_PARKED);
 //        db.execSQL(SQL_CREATE_TABLE_RECENT);
     }
 
@@ -137,7 +189,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         // Clear all data
         db.execSQL(SQL_DELETE_TABLE_LOCATION);
-        db.execSQL(SQL_DELETE_TABLE_RECENT);
+        db.execSQL(SQL_DELETE_TABLE_PARKED);
+//        db.execSQL(SQL_DELETE_TABLE_RECENT);
 
         // Recreate tables
         onCreate(db);

@@ -16,6 +16,7 @@ import android.widget.Toast;
 
 import com.csc413.group9.parkIt.Database.DatabaseHelper;
 import com.csc413.group9.parkIt.Database.DatabaseManager;
+import com.google.android.gms.maps.model.LatLng;
 
 import java.io.IOException;
 import java.util.List;
@@ -98,54 +99,29 @@ public class CurrentLocation extends Service implements LocationListener {
             // Get the location service
             mLocationManager = (LocationManager) mMainActivity.getSystemService(LOCATION_SERVICE);
 
-            // Check whether the network is enabled on the device
-            boolean networkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-
             // Check whether the GPS is enabled on the device
             boolean GPSEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
 
-            if ((GPSEnabled || networkEnabled) && keepTrack) {
+            if (GPSEnabled && keepTrack) {
 
                 canGetLocation = true;
-/*
-                // If the network is enabled, then get the network location
-                if (networkEnabled) {
 
-                    mLocationManager.requestLocationUpdates(
-                            LocationManager.NETWORK_PROVIDER,
-                            MIN_TIME, MIN_DISTANCE, this);
+                mLocationManager.requestLocationUpdates(
+                        LocationManager.GPS_PROVIDER,
+                        MIN_TIME, MIN_DISTANCE, this);
 
-                    if (mLocationManager != null) {
-                        mLocation = mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                if (mLocationManager != null) {
+                    mLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
-                        // Draw the current location on the map and save the coordinate to database
-                        if (mLocation != null) {
+                    // Draw the current location on the map and save the coordinate to database
+                    if (mLocation != null) {
 
-                            mMainActivity.placeMarkerOnMap(mLocation, true);
-
-                            setLastKnownLocation(mLocation);
+                        if (mMainActivity.isMapLoaded()) {
+                            mMainActivity.placeCurrentLocationMarker(
+                                    new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
                         }
-                    }
-                }
-*/
-                // If GPS is also enabled, then get the GPS location
-                if (GPSEnabled) {
 
-                    mLocationManager.requestLocationUpdates(
-                            LocationManager.GPS_PROVIDER,
-                            MIN_TIME, MIN_DISTANCE, this);
-
-                    if (mLocationManager != null) {
-                        mLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-
-                        // Draw the current location on the map and save the coordinate to database
-                        if (mLocation != null) {
-
-                            if (mMainActivity.isMapLoaded())
-                                mMainActivity.placeMarkerOnMap(mLocation, true);
-
-                            setLastKnownLocation(mLocation);
-                        }
+                        setLastKnownLocation(mLocation);
                     }
                 }
 
@@ -161,7 +137,7 @@ public class CurrentLocation extends Service implements LocationListener {
             }
 
         } catch (Exception ex) {
-            // Do nothing
+            ex.printStackTrace();
         }
 
         return mLocation;
@@ -324,9 +300,11 @@ public class CurrentLocation extends Service implements LocationListener {
 
             mLocation = location;
 
-            if (mMainActivity.isMapLoaded())
-                // Draw on map
-                mMainActivity.placeMarkerOnMap(mLocation, true);
+            if (mMainActivity.isMapLoaded()) {
+                // Place the marker on the map
+                mMainActivity.placeCurrentLocationMarker(
+                        new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
+            }
 
             // Save to database
             setLastKnownLocation(mLocation);
@@ -345,7 +323,6 @@ public class CurrentLocation extends Service implements LocationListener {
 
     @Override
     public void onProviderDisabled(String provider) {
-
     }
 
     @Override

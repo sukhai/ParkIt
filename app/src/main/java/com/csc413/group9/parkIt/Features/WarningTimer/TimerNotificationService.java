@@ -6,12 +6,15 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 
+import com.csc413.group9.parkIt.Database.DatabaseHelper;
+import com.csc413.group9.parkIt.Database.DatabaseManager;
 import com.csc413.group9.parkIt.MainActivity;
-import com.google.android.gms.maps.model.LatLng;
 
 /**
  * This is the notification service when the time has arrived and this notification will be shown
@@ -44,16 +47,15 @@ public class TimerNotificationService extends Service {
     private NotificationManager mNotificationManager;
 
     /**
-     * The location to be shown on the notification.
+     * The address of the parked location, which is set by WarningTimer.
      */
-    private LatLng location;
+    private String mAddress;
 
     @Override
     public void onCreate() {
         mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-        // need a way to get location and store in this.location
-        // probably use https://developer.android.com/training/basics/data-storage/shared-preferences.html method
+        getParkedLocation();
     }
 
     @Override
@@ -79,9 +81,11 @@ public class TimerNotificationService extends Service {
         // Launch MainActivity if the user clicked on this notification
         PendingIntent contentIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
 
+        MainActivity.startedFromNotification = true;
+
         Notification notification = new NotificationCompat.Builder(this)
                 .setContentTitle("Time is running out!")
-                .setContentText("")
+                .setContentText(mAddress)
                 .setWhen(System.currentTimeMillis())
                 .setContentIntent(contentIntent)
                 .setSmallIcon(R.drawable.ic_dialog_alert)
@@ -94,6 +98,31 @@ public class TimerNotificationService extends Service {
 
         // Stop the service when we are finished
         stopSelf();
+    }
+
+    /**
+     * Get the parked location information from the database. The information contains address,
+     * latitude, and longitude of the parked location.
+     */
+    private void getParkedLocation() {
+
+        // Just to make sure our DatabaseManager is initialized first before using it
+        DatabaseManager.initializeInstance(this);
+
+        SQLiteDatabase db = DatabaseManager.getInstance().open();
+
+        Cursor cursor = db.query(DatabaseHelper.TABLE_NAME_PARKED, new String[] { "*" },
+                null, null, null, null, null, null);
+
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                mAddress = cursor.getString(1);         // Address
+            }
+
+            cursor.close();
+        }
+
+        DatabaseManager.getInstance().close();
     }
 
     /**
