@@ -35,7 +35,10 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -246,7 +249,17 @@ public class ParkingInformation {
         /**
          * The progress dialog that will be shown when fetching the data from SFPark.
          */
-        ProgressDialog progressDialog;
+        private ProgressDialog progressDialog;
+
+        /**
+         * A date format with the format of HH:mm.
+         */
+        private DateFormat dateFormat = new SimpleDateFormat("HH:mm");
+
+        /**
+         * A reference to the current hour and minute
+         */
+        private Date currentTime;
 
         @Override
         protected void onPreExecute() {
@@ -257,6 +270,8 @@ public class ParkingInformation {
                 progressDialog.setMessage("Displaying parking data ...");
                 progressDialog.show();
                 progressDialog.setCancelable(false);
+
+                currentTime = dateFormat.parse(dateFormat.format(new Date(System.currentTimeMillis())));
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -343,6 +358,20 @@ public class ParkingInformation {
 
             onStreetParkings.add(parkingLocation);
 
+            // If it is street cleaning time now, then don't show the line
+            ParkingLocation.RateSchedule[] rateSchedules = parkingLocation.getRateSchedule();
+            for (int i = 0; i < rateSchedules.length; i++) {
+                ParkingLocation.RateSchedule rateSchedule = rateSchedules[i];
+
+                if (rateSchedule.getRateRestriction().equals(ParkingLocation.VALUE_STREET_SWEEP)) {
+                    if (!passedTime(rateSchedule.getEndTime())) {
+                        return;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
             Location[] locations = parkingLocation.getLocation();
 
             // If there are 2 points, then draw a line from point1 to point2
@@ -352,7 +381,7 @@ public class ParkingInformation {
                         .add(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()))
                         .add(new LatLng(locations[1].getLatitude(), locations[1].getLongitude()))
                         .color(Color.GREEN)
-                        .width(5f);
+                        .width(7f);
 
                 Polyline polyline = mMap.addPolyline(lineOptions);
                 onStreetParkingIcons.add(polyline);
@@ -393,6 +422,55 @@ public class ParkingInformation {
                     .snippet(description + "%" + snippet);
 
             offStreetParkingIcons.add(mMap.addMarker(markerOptions));
+        }
+
+        /**
+         * Check whether the given time has passed the current time. The given time must be in the
+         * format: HH:mm AM/PM. Return true if the given time has passed the current time, false
+         * otherwise.
+         * @param givenTime the given time in the format HH:mm AM/PM
+         * @return true if the given time has passed the current time, false otherwise
+         */
+        private boolean passedTime(String givenTime) {
+
+            // Parse out the given time from string into integer
+            // Assuming the given time has the format: HH:mm AM
+            String[] time = givenTime.split("\\s+");
+
+            // Assume it is available to park if the given time is in invalid format
+            if (time == null || time.length != 2) {
+                return true;
+            }
+
+            String hourMinute = time[0];        // Should have the format: HH:mm
+            String period = time[1];            // Should contain AM or PM
+
+            String[] hm = hourMinute.split(":");
+
+            if (hm == null || hm.length != 2) {
+                return true;
+            }
+
+            int hour = Integer.parseInt(hm[0]);
+
+            String hhmm = period.equalsIgnoreCase("PM") ?
+                    (Integer.toString(hour + 12) + ":" + hm[1]) :
+                    ("0" + hour + ":" + hm[1]);
+
+            try {
+                Date givenDate = dateFormat.parse(hhmm);
+
+                if (currentTime.before(givenDate)) {
+                    return false;
+                } else {
+                    return true;
+                }
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+            return true;
         }
 
         /**
