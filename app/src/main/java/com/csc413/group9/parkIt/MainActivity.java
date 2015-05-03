@@ -39,6 +39,7 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.Projection;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -83,6 +84,8 @@ public class MainActivity extends ActionBarActivity implements
     private boolean showOnStreetParking = true;
     private boolean showOffStreetParking = true;
 
+    private MapView mMapView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -105,7 +108,7 @@ public class MainActivity extends ActionBarActivity implements
         mWarningTimer.bindService();
 
         if (startedFromNotification) {
-            this.startedFromNotification = false;
+            startedFromNotification = false;
             mWarningTimer.goToParkedLocation();
         }
     }
@@ -118,6 +121,8 @@ public class MainActivity extends ActionBarActivity implements
         mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
                 .getMap();
 
+        mMap.setBuildingsEnabled(false);
+        mMap.setIndoorEnabled(false);
         mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
             public void onMapClick(LatLng latLng) {
@@ -130,58 +135,8 @@ public class MainActivity extends ActionBarActivity implements
             }
         });
 
-        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
-            @Override
-            public boolean onMarkerClick(Marker marker) {
-
-                if (marker.getSnippet() != null) {      // It's a garage parking marker
-
-                    if (mClickedLocationMarker != null) {
-                        mClickedLocationMarker.remove();
-                    }
-
-                } else {        // It's a random clicked location marker on the map
-
-                    // If it is a different marker than the previously stored marker, remove it
-                    if (mClickedLocationMarker != null && !mClickedLocationMarker.equals(marker))
-                        mClickedLocationMarker.remove();
-
-                    mClickedLocationMarker = marker;
-                }
-
-                if (mInfoWindowIsShown) {
-                    mInfoWindowIsShown = false;
-                    marker.hideInfoWindow();
-
-                    // If this is the same parking garage marker that has been clicked, do nothing
-                    if (mParkingGarageMarker != null && mParkingGarageMarker.equals(marker)) {
-                        return true;
-
-                    // If this is a different parking garage marker, hide the current InfoWindow and
-                    // show the new parking garage marker's InfoWindow
-                    } else if (mParkingGarageMarker != null && marker.getSnippet() != null) {
-                        mParkingGarageMarker.hideInfoWindow();
-                        mParkingGarageMarker = marker;
-                        return false;
-
-                    // If this is the first time user click on any parking garage marker, set this
-                    // marker as the parking garage marker
-                    } else if (mParkingGarageMarker == null && marker.getSnippet() != null) {
-                        mParkingGarageMarker = marker;
-                        return true;
-                    }
-
-                    return true;
-                } else {
-                    // No InfoWindow is shown on any of the markers on the map, so show it
-                    mInfoWindowIsShown = true;
-                    return false;
-                }
-            }
-        });
-
+        mMap.setOnMarkerClickListener(new MarkerClickedListener());
         mMap.setInfoWindowAdapter(new CustomInfoWindowAdapter());
-
         mMap.setOnMapLoadedCallback(this);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(SF_LATITUDE, SF_LONGITUDE), 10));
     }
@@ -303,7 +258,6 @@ public class MainActivity extends ActionBarActivity implements
         if (mParkingInfo.isSFParkDataReady())
             mParkingInfo.highlightStreet(showOnStreetParking, showOffStreetParking);
 
- //       trackDeviceLocation(null);
     }
 
     /**
@@ -426,6 +380,10 @@ public class MainActivity extends ActionBarActivity implements
         }
 
         if (mMap != null) {
+
+            if (mParkingGarageMarker != null)
+                mParkingGarageMarker.hideInfoWindow();
+
             if (mClickedLocationMarker != null)
                 mClickedLocationMarker.remove();
 
@@ -521,14 +479,14 @@ public class MainActivity extends ActionBarActivity implements
                 if (t < 1.0) {
                     // Post again 16ms later.
                     handler.postDelayed(this, 16);
-                } else {
+                } else {/*
                     if (hideMarker) {
                         mCLMarker.setVisible(false);
                         mCLMarkerCircle.setVisible(false);
                     } else {
                         mCLMarker.setVisible(true);
                         mCLMarkerCircle.setVisible(true);
-                    }
+                    }*/
                 }
             }
         });
@@ -612,6 +570,57 @@ public class MainActivity extends ActionBarActivity implements
         CameraUpdate update = CameraUpdateFactory.newLatLngZoom(mCurrentLatLng, CAMERA_ZOOM_LEVEL);
         mMap.moveCamera(update); //motion event to move the camera (can use animate)
         mMap.addMarker(new MarkerOptions().position(mCurrentLatLng).title(location)); //puts marker
+    }
+
+    private class MarkerClickedListener implements GoogleMap.OnMarkerClickListener {
+
+        @Override
+        public boolean onMarkerClick(Marker marker) {
+
+            if (marker.getSnippet() != null) {      // It's a garage parking marker
+
+                if (mClickedLocationMarker != null) {
+                    mClickedLocationMarker.remove();
+                }
+
+            } else {        // It's a random clicked location marker on the map
+
+                // If it is a different marker than the previously stored marker, remove it
+                if (mClickedLocationMarker != null && !mClickedLocationMarker.equals(marker))
+                    mClickedLocationMarker.remove();
+
+                mClickedLocationMarker = marker;
+            }
+
+            if (mInfoWindowIsShown) {
+                mInfoWindowIsShown = false;
+                marker.hideInfoWindow();
+
+                // If this is the same parking garage marker that has been clicked, do nothing
+                if (mParkingGarageMarker != null && mParkingGarageMarker.equals(marker)) {
+                    return true;
+
+                    // If this is a different parking garage marker, hide the current InfoWindow and
+                    // show the new parking garage marker's InfoWindow
+                } else if (mParkingGarageMarker != null && marker.getSnippet() != null) {
+                    mParkingGarageMarker.hideInfoWindow();
+                    mParkingGarageMarker = marker;
+                    return false;
+
+                    // If this is the first time user click on any parking garage marker, set this
+                    // marker as the parking garage marker
+                } else if (mParkingGarageMarker == null && marker.getSnippet() != null) {
+                    mParkingGarageMarker = marker;
+                    return true;
+                }
+
+                return true;
+            } else {
+                // No InfoWindow is shown on any of the markers on the map, so show it
+                mInfoWindowIsShown = true;
+                return false;
+            }
+        }
     }
 
     private class CustomInfoWindowAdapter implements GoogleMap.InfoWindowAdapter {
