@@ -25,6 +25,7 @@ import android.view.animation.LinearInterpolator;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.PopupWindow;
+import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
@@ -57,11 +58,15 @@ public class MainActivity extends ActionBarActivity implements
         GoogleMap.OnMapLoadedCallback,
         SensorEventListener {
 
+    public static boolean startedFromNotification = false;
+
     private static final double SF_LATITUDE = 37.7833;
     private static final double SF_LONGITUDE = -122.4167;
     private static final float CAMERA_ZOOM_LEVEL = 18f;
+
     private GoogleMap mMap;
     private Marker mClickedLocationMarker;
+    private Marker mParkingGarageMarker;
     private Marker mCLMarker;
     private Circle mCLMarkerCircle;
     private GoogleApiClient mGoogleApiClient;
@@ -72,6 +77,7 @@ public class MainActivity extends ActionBarActivity implements
     private TimePicker mTimePicker;
     private SensorManager mSensorManager;
     private float mMarkerRotation;
+    private boolean mInfoWindowIsShown = false;
     private boolean mapLoaded = false;
     private boolean showPrice = true;
     private boolean showOnStreetParking = true;
@@ -91,15 +97,17 @@ public class MainActivity extends ActionBarActivity implements
 
         buildGoogleApiClient();
         buildSensorManager();
-
-        mCurrentLocation = new CurrentLocation(this);
-
         buildGoogleMap();
 
+        mCurrentLocation = new CurrentLocation(this);
         mParkingInfo = new ParkingInformation(this, mMap);
-
         mWarningTimer = new WarningTimer(this);
         mWarningTimer.bindService();
+
+        if (startedFromNotification) {
+            this.startedFromNotification = false;
+            mWarningTimer.goToParkedLocation();
+        }
     }
 
     /**
@@ -114,16 +122,65 @@ public class MainActivity extends ActionBarActivity implements
             @Override
             public void onMapClick(LatLng latLng) {
 
-                Location location = new Location("Clicked Location");
-                location.setLatitude(latLng.latitude);
-                location.setLongitude(latLng.longitude);
-
-                if (mapLoaded)
-                    placeMarkerOnMap(location, false);
+                if (mapLoaded) {
+                    placeMarker(latLng);
+                }
 
                 mCurrentLocation.stopLocationUpdates();
             }
         });
+
+        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+
+                if (marker.getSnippet() != null) {      // It's a garage parking marker
+
+                    if (mClickedLocationMarker != null) {
+                        mClickedLocationMarker.remove();
+                    }
+
+                } else {        // It's a random clicked location marker on the map
+
+                    // If it is a different marker than the previously stored marker, remove it
+                    if (mClickedLocationMarker != null && !mClickedLocationMarker.equals(marker))
+                        mClickedLocationMarker.remove();
+
+                    mClickedLocationMarker = marker;
+                }
+
+                if (mInfoWindowIsShown) {
+                    mInfoWindowIsShown = false;
+                    marker.hideInfoWindow();
+
+                    // If this is the same parking garage marker that has been clicked, do nothing
+                    if (mParkingGarageMarker != null && mParkingGarageMarker.equals(marker)) {
+                        return true;
+
+                    // If this is a different parking garage marker, hide the current InfoWindow and
+                    // show the new parking garage marker's InfoWindow
+                    } else if (mParkingGarageMarker != null && marker.getSnippet() != null) {
+                        mParkingGarageMarker.hideInfoWindow();
+                        mParkingGarageMarker = marker;
+                        return false;
+
+                    // If this is the first time user click on any parking garage marker, set this
+                    // marker as the parking garage marker
+                    } else if (mParkingGarageMarker == null && marker.getSnippet() != null) {
+                        mParkingGarageMarker = marker;
+                        return true;
+                    }
+
+                    return true;
+                } else {
+                    // No InfoWindow is shown on any of the markers on the map, so show it
+                    mInfoWindowIsShown = true;
+                    return false;
+                }
+            }
+        });
+
+        mMap.setInfoWindowAdapter(new CustomInfoWindowAdapter());
 
         mMap.setOnMapLoadedCallback(this);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(SF_LATITUDE, SF_LONGITUDE), 10));
@@ -236,7 +293,6 @@ public class MainActivity extends ActionBarActivity implements
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
     }
 
     @Override
@@ -247,7 +303,7 @@ public class MainActivity extends ActionBarActivity implements
         if (mParkingInfo.isSFParkDataReady())
             mParkingInfo.highlightStreet(showOnStreetParking, showOffStreetParking);
 
-        trackDeviceLocation(null);
+ //       trackDeviceLocation(null);
     }
 
     /**
@@ -301,10 +357,24 @@ public class MainActivity extends ActionBarActivity implements
      */
     public void setWarningTimer(View view) {
 
-        mWarningTimer.setLocation(mCLMarker.getPosition());
+        if (mCLMarker == null) {
+            mTimerWindow.dismiss();
+            return;
+        }
+
+        Location location = new Location("");
+        location.setLatitude(mCLMarker.getPosition().latitude);
+        location.setLongitude(mCLMarker.getPosition().longitude);
+
+        mWarningTimer.setParkedLocation(getAddress(location), mCLMarker.getPosition());
         mWarningTimer.setWarningTime();
 
         mTimerWindow.dismiss();
+
+        Toast.makeText(this,
+                "Timer is set",
+                Toast.LENGTH_SHORT)
+                .show();
     }
 
     /**
@@ -332,7 +402,8 @@ public class MainActivity extends ActionBarActivity implements
             Location location = mCurrentLocation.getLocation();
 
             if (location != null && mapLoaded) {
-                placeMarkerOnMap(location, true);
+                placeCurrentLocationMarker(
+                        new LatLng(location.getLatitude(), location.getLongitude()));
             }
 
         } else {
@@ -341,85 +412,85 @@ public class MainActivity extends ActionBarActivity implements
             if (mapLoaded) {
                 String[] location = mCurrentLocation.getLastKnownLocation();
 
-                Location loc = new Location(location[0]);
-                loc.setLatitude(Double.parseDouble(location[1]));
-                loc.setLongitude(Double.parseDouble(location[2]));
+                LatLng latLng = new LatLng(Double.parseDouble(location[1]), Double.parseDouble(location[2]));
 
-                placeMarkerOnMap(loc, true);
+                placeCurrentLocationMarker(latLng);
             }
         }
     }
 
-    /**
-     * Place a marker on the map on the specified location on the map.
-     * @param location The location of the marker to be placed on the map
-     * @param isCurrentLocationMarker true if this marker is for current location, false otherwise
-     */
-    public void placeMarkerOnMap(Location location, boolean isCurrentLocationMarker) {
+    public void placeCurrentLocationMarker(LatLng location) {
 
-        // For testing purpose
-        Toast.makeText(getApplicationContext(), location.getLatitude() + ", " + location.getLongitude(), Toast.LENGTH_SHORT).show();
-
-        // Do a null check to confirm that we have not already instantiated the map.
-        if (mMap == null)
+        if (mMap == null) {
             buildGoogleMap();
+        }
 
         if (mMap != null) {
-            // The marker is for current location
-            if (isCurrentLocationMarker) {
-                if (mClickedLocationMarker != null)
-                    mClickedLocationMarker.remove();
+            if (mClickedLocationMarker != null)
+                mClickedLocationMarker.remove();
 
-                if (mCLMarker != null && mCLMarkerCircle != null) {
-                    // Show the marker
-                    mCLMarker.setVisible(true);
-                    mCLMarkerCircle.setVisible(true);
+            if (mCLMarker != null && mCLMarkerCircle != null) {
+                // Show the marker
+                mCLMarker.setVisible(true);
+                mCLMarkerCircle.setVisible(true);
 
-                    animateMarker(new LatLng(location.getLatitude(), location.getLongitude()), false);
-
-                } else {
-                    // Create the marker
-                    mCLMarker = mMap.addMarker(new MarkerOptions()
-                            .position(new LatLng(location.getLatitude(), location.getLongitude()))
-                            .rotation(mMarkerRotation)
-                            .anchor(0.5f, 0.75f)
-                            .flat(true)
-                            .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_user)));
-
-                    mCLMarkerCircle = mMap.addCircle(new CircleOptions()
-                            .center(new LatLng(location.getLatitude(), location.getLongitude()))
-                            .radius(45f)
-                            .fillColor(Color.TRANSPARENT)
-                            .strokeWidth(1.5f)
-                            .strokeColor(0xFFE01368));
-                }
+                animateMarker(location, false);
 
             } else {
-                // The marker is not for current location, so just place a regular marker on the
-                // specified location
+                // Create the marker
+                mCLMarker = mMap.addMarker(new MarkerOptions()
+                        .title("")
+                        .position(location)
+                        .rotation(mMarkerRotation)
+                        .anchor(0.5f, 0.75f)
+                        .flat(true)
+                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_user)));
 
-                if (mCLMarker != null) {
-                    // Hide the marker
-                    mCLMarker.setVisible(false);
-                    mCLMarkerCircle.setVisible(false);
-                }
-
-                if (mClickedLocationMarker != null)
-                    mClickedLocationMarker.remove();
-
-                mClickedLocationMarker = mMap.addMarker(new MarkerOptions()
-                        .position(new LatLng(location.getLatitude(), location.getLongitude()))
-                        .title(getAddress(location)));
-
-                // Show the address of the clicked location
-                mClickedLocationMarker.showInfoWindow();
+                mCLMarkerCircle = mMap.addCircle(new CircleOptions()
+                        .center(location)
+                        .radius(45f)
+                        .fillColor(Color.TRANSPARENT)
+                        .strokeWidth(1.5f)
+                        .strokeColor(0xFFE01368));
             }
 
             // Move the camera to the marker
-            mMap.animateCamera(
-                    CameraUpdateFactory.newLatLngZoom(
-                            new LatLng(location.getLatitude(), location.getLongitude()),
-                            CAMERA_ZOOM_LEVEL));
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, CAMERA_ZOOM_LEVEL));
+        }
+    }
+
+    public void placeMarker(LatLng location) {
+
+        if (mMap == null) {
+            buildGoogleMap();
+        }
+
+        if (mMap != null) {
+            if (mCLMarker != null) {
+                // Hide the current location marker
+                mCLMarker.setVisible(false);
+                mCLMarkerCircle.setVisible(false);
+            }
+
+            // We only want to remove the marker that is clicked on the map by the user, not
+            // the garage parking marker
+            if (mClickedLocationMarker != null && mClickedLocationMarker.getSnippet() == null)
+                mClickedLocationMarker.remove();
+
+            Location loc = new Location("");
+            loc.setLatitude(location.latitude);
+            loc.setLongitude(location.longitude);
+
+            // Add the new marker to the map
+            mClickedLocationMarker = mMap.addMarker(new MarkerOptions()
+                    .position(location)
+                    .title(getAddress(loc)));
+
+            // Show the address of the marker's location
+            mClickedLocationMarker.showInfoWindow();
+
+            // Move the camera to the marker
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, CAMERA_ZOOM_LEVEL));
         }
     }
 
@@ -541,5 +612,62 @@ public class MainActivity extends ActionBarActivity implements
         CameraUpdate update = CameraUpdateFactory.newLatLngZoom(mCurrentLatLng, CAMERA_ZOOM_LEVEL);
         mMap.moveCamera(update); //motion event to move the camera (can use animate)
         mMap.addMarker(new MarkerOptions().position(mCurrentLatLng).title(location)); //puts marker
+    }
+
+    private class CustomInfoWindowAdapter implements GoogleMap.InfoWindowAdapter {
+
+        private View mView;
+
+        CustomInfoWindowAdapter() {
+            mView = getLayoutInflater().inflate(R.layout.window_parking_info, null);
+        }
+
+        @Override
+        public View getInfoWindow(Marker marker) {
+
+            // If the title is an empty string, such as from the mCLMarker, then
+            // we don't show any InfoWindow
+            if (marker.getTitle().equals(""))
+                return null;
+
+            // Set the title for the InfoWindow
+            TextView title = ((TextView) mView.findViewById(R.id.parking_name));
+            title.setText(marker.getTitle());
+
+            String snippet = marker.getSnippet();
+            String address = null;
+            String rate = null;
+
+            if (snippet == null) {
+                // This marker is a clicked marker on the map, and it's not the marker for
+                // garage parking, so we just use default InfoWindow
+                return null;
+            }
+
+            // Now we know this is the garage parking marker, it must have address and rate,
+            // so we parse out the marker's snippet into address and rate
+            // The address and rate is separate by '%' character
+            for (int i = 0; i < snippet.length(); i++) {
+                if (snippet.charAt(i) == '%') {
+                    address = snippet.substring(0, i);
+                    rate = snippet.substring(i + 1, snippet.length());
+                    break;
+                }
+            }
+
+            TextView textAddress = ((TextView) mView.findViewById(R.id.parking_address));
+            textAddress.setText(address);
+
+            TextView textRate = ((TextView) mView.findViewById(R.id.parking_snippet));
+            textRate.setText(rate);
+
+            return mView;
+        }
+
+        @Override
+        public View getInfoContents(Marker marker) {
+            // We want getInfoWindow(...) to set our custom info window, so return null here
+            return null;
+        }
     }
 }

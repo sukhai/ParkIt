@@ -198,11 +198,11 @@ public class ParkingInformation {
             }
         }
     }
+
     /**
      * Initialize off-street parking locations (parking lot buildings) and get ready to get the
      * street highlight.
      */
-
     private void initializeOffStreetParking() {
 
         MarkerOptions markerOptions = new MarkerOptions()
