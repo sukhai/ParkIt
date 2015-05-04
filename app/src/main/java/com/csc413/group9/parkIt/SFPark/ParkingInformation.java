@@ -1,15 +1,16 @@
 package com.csc413.group9.parkIt.SFPark;
 
-import android.app.ProgressDialog;
-import android.content.Context;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.text.format.DateUtils;
+import android.widget.Toast;
 
-import com.csc413.group9.parkIt.R;
+import com.csc413.group9.parkIt.MainActivity;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -39,95 +40,49 @@ import java.util.ArrayList;
 import java.util.zip.GZIPInputStream;
 
 /**
- * This class handles the parking information around the device's current location. This class will
- * load the data from the SFPark and display it on the Google map.
+ * This class handles the parking information around the device's current location. This class can
+ * also highlight the street parking information on the map.
  *
  * Created by Su Khai Koh on 4/19/15.
  */
 public class ParkingInformation {
 
-    /**
-     * The SFPark URL that contains the parking data this application needs.
-     */
-    private static final String SERVICE_URL = "http://api.sfpark.org/sfpark/rest/availabilityservice?radius=1000.0&response=json&version=1.0&pricing=yes";
+    // Constants for HTTP request
+    private static final int SECOND_IN_MILLIS = (int) DateUtils.SECOND_IN_MILLIS;
+    private static final int SOCKET_BUFFER_SIZE = 8192;
 
-    /**
-     * A reference to the application's context.
-     */
-    private Context mContext;
+    // Request parameters
+    private static final String RADIUS = "100.0";               // 100 miles within the SFPark default latitude and longitude
+    private static final String RESPONSE = "json";              // Request data in JSON format
+    private static final String VERSION = "1.0";                // SFPark data version
 
-    /**
-     * A reference to the Google map.
-     */
-    private GoogleMap mMap;
+    // SFPark URL
+    private static final String SERVICE_URL = "http://api.sfpark.org/sfpark/rest/availabilityservice?";
 
-    /**
-     * The content of the SFPark URL.
-     */
-    private String uriContent;
+    private MainActivity mMainActivity;                         // The activity that contains the main context
+    private GoogleMap mMap;                                     // The Google map
+    private String uri;                                         // The URI of the SFPark
+    private String uriContent;                                  // The content of the SFPark data
+    private ArrayList<ParkingLocation> onStreetParkings;        // A list of on-street parking locations
+    private ArrayList<ParkingLocation> offStreetParkings;       // A list of off-street parking locations
+    private ArrayList<Object> onStreetParkingIcons;             // A list of on-street parking location icons
+    private ArrayList<Marker> offStreetParkingIcons;            // A list of off-street parking location icons
+    private boolean sfParkDataReady = false;                    // Is the SFPark data ready for read?
+    private boolean highlightedOnStreetParking;                 // Is the on-street parking location highlighted?
+    private boolean highlightedOffStreetParking;                // Is the off-street parking location highlighted?
 
-    /**
-     * A list of on-street parking locations.
-     */
-    private ArrayList<ParkingLocation> onStreetParkings;
+    public ParkingInformation(MainActivity mainActivity, GoogleMap map) {
 
-    /**
-     * A list of off-street parking locations (garage parking).
-     */
-    private ArrayList<ParkingLocation> offStreetParkings;
-
-    /**
-     * A list of on-street parking location icons, which are Polylines on the Google map.
-     */
-    private ArrayList<Polyline> onStreetParkingIcons;
-
-    /**
-     * A list of off-street parking location icons, which are Markers on the Google map.
-     */
-    private ArrayList<Marker> offStreetParkingIcons;
-
-    /**
-     * Flag for the SFPark data readiness. Default to false (not ready).
-     */
-    private boolean sfParkDataReady = false;
-
-    /**
-     * Flag for whether the on-street parking has already been highlighted.
-     */
-    private boolean highlightedOnStreetParking;
-
-    /**
-     * Flag for whether the off-street parking (garage parking) has already been highlighted.
-     */
-    private boolean highlightedOffStreetParking;
-
-    /**
-     * Constructor that setup the class members and references.
-     * @param context the context of the application
-     * @param map the Google map
-     */
-    public ParkingInformation(Context context, GoogleMap map) {
-
-        mContext = context;
+        mMainActivity = mainActivity;
         mMap = map;
 
-        initializeArrays();
-
-        getSFParkData();
-    }
-
-    /**
-     * Determine if the SFPark data is ready.
-     * @return true if the SFPark data is ready, false otherwise
-     */
-    public boolean isSFParkDataReady() {
-        return sfParkDataReady;
+        getSFParkData();          // Get data from SFPark
     }
 
     /**
      * Highlight on-street and off-street parking locations based on the given parameters.
-     * @param drawOnStreet whether to draw on-street parking or not (true = draw, false otherwise)
-     * @param drawOffStreet whether to draw off-street parking or not (true = draw, false otherwise)
+     * @param drawOnStreet whether to draw on-street parking or not
+     * @param drawOffStreet whether to draw off-street parking or not
      */
     public void highlightStreet(boolean drawOnStreet, boolean drawOffStreet) {
 
@@ -146,21 +101,30 @@ public class ParkingInformation {
             removeOffStreetHighlighted();
             highlightedOffStreetParking = false;
         }
+
     }
 
     /**
-     * Highlight on-street parking on the map by setting the icons to visible.
+     * Highlight on-street parking on the map.
      */
     private void highlightOnStreetParking() {
 
         for (int i = 0; i < onStreetParkingIcons.size(); i++) {
-            onStreetParkingIcons.get(i).setVisible(true);
+
+            Object icon = onStreetParkingIcons.get(i);
+
+            if (icon instanceof Polyline) {
+                Polyline polyline = (Polyline) icon;
+                polyline.setVisible(true);
+            } else {
+                Circle circle = (Circle) icon;
+                circle.setVisible(true);
+            }
         }
     }
 
     /**
-     * Highlight the off-street parking (parking lot building) on the map by setting the icons
-     * to visible.
+     * Highlight the off-street parking (parking lot building) on the map.
      */
     private void highlightOffStreetParking() {
 
@@ -170,17 +134,26 @@ public class ParkingInformation {
     }
 
     /**
-     * Remove the on-street parking highlight from the map by setting the icons to invisible.
+     * Remove the on-street parking highlight from the map.
      */
     private void removeOnStreetHighlighted() {
 
         for (int i = 0; i < onStreetParkingIcons.size(); i++) {
-            onStreetParkingIcons.get(i).setVisible(false);
+
+            Object icon = onStreetParkingIcons.get(i);
+
+            if (icon instanceof Polyline) {
+                Polyline polyline = (Polyline) icon;
+                polyline.setVisible(false);
+            } else {
+                Circle circle = (Circle) icon;
+                circle.setVisible(false);
+            }
         }
     }
 
     /**
-     * Remove the off-street parking highlight from the map by setting the icons to invisible.
+     * Remove the off-street parking highlight from the map.
      */
     private void removeOffStreetHighlighted() {
 
@@ -190,13 +163,82 @@ public class ParkingInformation {
     }
 
     /**
-     * Get the SFPark data from the SFPark URL. The fetching and parsing data process will be
+     * Initialize the on-street parking locations and get ready to get the street highlight.
+     */
+    private void initializeOnStreetParking() {
+
+        CircleOptions circleOptions = new CircleOptions()
+                .radius(5f)
+                .strokeColor(Color.GREEN)
+                .fillColor(Color.GREEN)
+                .visible(false);
+
+        for (int i = 0; i < onStreetParkings.size(); i++) {
+
+            Location[] locations = onStreetParkings.get(i).getLocation();
+
+            // If there are 2 points, then draw a line from point1 to point2
+            if (locations.length == 2) {
+                // Draw a line
+                PolylineOptions lineOptions = new PolylineOptions()
+                        .add(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()))
+                        .add(new LatLng(locations[1].getLatitude(), locations[1].getLongitude()))
+                        .color(Color.GREEN)
+                        .width(5f)
+                        .visible(false);
+
+                Polyline polyline = mMap.addPolyline(lineOptions);
+                onStreetParkingIcons.add(polyline);
+
+            } else {
+                // Draw a circle
+                circleOptions.center(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()));
+                Circle circle = mMap.addCircle(circleOptions);
+                onStreetParkingIcons.add(circle);
+            }
+        }
+    }
+
+    /**
+     * Initialize off-street parking locations (parking lot buildings) and get ready to get the
+     * street highlight.
+     */
+    private void initializeOffStreetParking() {
+
+        MarkerOptions markerOptions = new MarkerOptions()
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                .visible(false);
+
+        for (int i = 0; i < offStreetParkings.size(); i++) {
+            Location[] locations = offStreetParkings.get(i).getLocation();
+            markerOptions.position(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()));
+
+            offStreetParkingIcons.add(mMap.addMarker(markerOptions));
+        }
+    }
+
+    /**
+     * Determine if the SFPark data is ready.
+     * @return true if the SFPark data is ready, otherwise false
+     */
+    public boolean isSFParkDataReady() {
+        return sfParkDataReady;
+    }
+
+    /**
+     * Get the SFPark data from the SFPark URI. The fetching and parsing data process will be
      * done in a different thread.
      */
     private void getSFParkData() {
 
+        // Construct the URI
+        uri = SERVICE_URL + "radius=" + RADIUS +
+                            "&response=" + RESPONSE +
+                            "&version=" + VERSION +
+                            "&pricing=yes";
+
         LoadSFParkDataTask ld = new LoadSFParkDataTask();
-        ld.execute();
+        ld.execute("String");
     }
 
     /**
@@ -206,66 +248,139 @@ public class ParkingInformation {
     private void initializeArrays() {
 
         if (onStreetParkings == null)
-            onStreetParkings = new ArrayList<>();
+            onStreetParkings = new ArrayList<ParkingLocation>();
         else
             onStreetParkings.clear();
 
         if (offStreetParkings == null)
-            offStreetParkings = new ArrayList<>();
+            offStreetParkings = new ArrayList<ParkingLocation>();
         else
             offStreetParkings.clear();
 
         if (onStreetParkingIcons == null)
-            onStreetParkingIcons = new ArrayList<>();
+            onStreetParkingIcons = new ArrayList<Object>();
         else
             onStreetParkingIcons.clear();
 
         if (offStreetParkingIcons == null)
-            offStreetParkingIcons = new ArrayList<>();
+            offStreetParkingIcons = new ArrayList<Marker>();
         else
             offStreetParkingIcons.clear();
     }
 
     /**
-     * A class that load, read, and display the SFPark data on the Google map. This class will
-     * perform most of the task on the background.
+     * Load SFPark data from the SFPark website. Must be called by getSFParkData().
      */
-    private class LoadSFParkDataTask extends AsyncTask<Void, ParkingLocation, Void> {
+    private void loadSFParkData() {
 
-        // Constants for HTTP request
-        /**
-         * Default wait time for  HTTP connection.
-         */
-        private static final int SECOND_IN_MILLIS = (int) DateUtils.SECOND_IN_MILLIS;
+        if (uriContent != null)
+            return;
 
-        /**
-         * Default socket buffer size for HTTP connection.
-         */
-        private static final int SOCKET_BUFFER_SIZE = 8192;
+        try {
+            uriContent = getURIContent(uri);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
 
-        /**
-         * The progress dialog that will be shown when fetching the data from SFPark.
-         */
-        ProgressDialog progressDialog;
+    /**
+     * Read the SFPark data. loadSFParkData must be called first before this method.
+     */
+    private void readSFParkData() {
+
+        try {
+            if (uriContent == null || uriContent.equals(""))
+                return;
+
+            JSONObject rootObject = new JSONObject(uriContent);
+            JSONArray jsonAVL = rootObject.has("AVL") ? rootObject.getJSONArray("AVL") : null;
+
+            if (jsonAVL == null)
+                return;
+
+            // Initialize both onStreetParkings and offStreetParkings array list
+            initializeArrays();
+
+            for (int i = 0; i < jsonAVL.length(); i++) {
+                // Get the AVL value (a location JSON data) and parse it
+                JSONObject location = jsonAVL.getJSONObject(i);
+                ParkingLocation parkingLocation = new ParkingLocation(location);
+
+                if (parkingLocation.isOnStreet())
+                    onStreetParkings.add(parkingLocation);
+                else
+                    offStreetParkings.add(parkingLocation);
+
+            }
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Get the URI content, which is the data from the SFPark.
+     * @param uri the SFPark URI
+     * @return a string that contains the content (SFPark data) from the SFPark website
+     * @throws Exception any error when doing HTTP request
+     */
+    private String getURIContent(String uri) throws Exception {
+
+        try {
+            HttpGet request = new HttpGet();
+            request.setURI(new URI(uri));
+            request.addHeader("Accept-Encoding", "gzip");
+
+            final HttpParams params = new BasicHttpParams();
+            HttpConnectionParams.setConnectionTimeout(params, 30 * SECOND_IN_MILLIS);
+            HttpConnectionParams.setSoTimeout(params, 30 * SECOND_IN_MILLIS);
+            HttpConnectionParams.setSocketBufferSize(params, SOCKET_BUFFER_SIZE);
+
+            final DefaultHttpClient client = new DefaultHttpClient(params);
+
+            client.addResponseInterceptor(new HttpResponseInterceptor() {
+
+                @Override
+                public void process(HttpResponse response, HttpContext context) {
+
+                    final HttpEntity entity = response.getEntity();
+                    final Header encoding = entity.getContentEncoding();
+
+                    if (encoding != null) {
+                        for (HeaderElement element : encoding.getElements()) {
+                            if (element.getName().equalsIgnoreCase("gzip")) {
+                                response.setEntity(new InflatingEntity(response.getEntity()));
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+
+            return client.execute(request, new BasicResponseHandler());
+
+        } finally {
+            // No clean up code is needed
+        }
+    }
+
+    /**
+     * This class allows to perform background operations when reading and parsing the SFPark data.
+     */
+    private class LoadSFParkDataTask extends AsyncTask<String, Void, Void> {
 
         @Override
         protected void onPreExecute() {
-
-            try {
-                progressDialog = new ProgressDialog(mContext);
-                progressDialog.setTitle("Please wait");
-                progressDialog.setMessage("Displaying parking data ...");
-                progressDialog.show();
-                progressDialog.setCancelable(false);
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            // Show a message saying this app is fetching data
+            Toast.makeText(mMainActivity,
+                    "Fetching data ...",
+                    Toast.LENGTH_SHORT)
+                    .show();
         }
 
         @Override
-        protected Void doInBackground(Void... voids) {
-
+        protected Void doInBackground(String... urls) {
+            // Load then read the SFPark data in the background
             loadSFParkData();
 
             readSFParkData();
@@ -274,191 +389,46 @@ public class ParkingInformation {
         }
 
         @Override
-        protected void onProgressUpdate(ParkingLocation... locations) {
+        protected void onPostExecute(Void unused) {
 
-            if (locations[0].isOnStreet()) {
-                initializeOnStreetParking(locations[0]);
-            } else {
-                initializeOffStreetParking(locations[0]);
+            try {
+
+                // Show a message saying this app is fetching data
+                Toast.makeText(mMainActivity,
+                        "Displaying data ...",
+                        Toast.LENGTH_SHORT)
+                        .show();
+
+                initializeOnStreetParking();
+                initializeOffStreetParking();
+
+                sfParkDataReady = true;
+
+                highlightStreet(true, true);
+
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+        }
+    }
+
+    /**
+     * Base class for wrapping entities. Keeps a wrappedEntity and delegates all calls to it.
+     */
+    private static class InflatingEntity extends HttpEntityWrapper {
+
+        public InflatingEntity(HttpEntity wrapped) {
+            super(wrapped);
         }
 
         @Override
-        protected void onPostExecute(Void v) {
-
-            sfParkDataReady = true;
-
-            progressDialog.dismiss();
+        public InputStream getContent() throws IOException {
+            return new GZIPInputStream(wrappedEntity.getContent());
         }
 
-        /**
-         * Load SFPark data from the SFPark URL.
-         */
-        private void loadSFParkData() {
-
-            if (uriContent != null)
-                return;
-
-            try {
-                uriContent = getURIContent(SERVICE_URL);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        }
-
-        /**
-         * Read the SFPark data after it is loaded into the application.
-         */
-        private void readSFParkData() {
-
-            try {
-                // Don't do anything if there is nothing available in the SFPark URL
-                if (uriContent == null || uriContent.equals(""))
-                    return;
-
-                JSONObject rootObject = new JSONObject(uriContent);
-                JSONArray jsonAVL = rootObject.has("AVL") ? rootObject.getJSONArray("AVL") : null;
-
-                if (jsonAVL == null)
-                    return;
-
-                for (int i = 0; i < jsonAVL.length(); i++) {
-                    // Get the AVL value (a location JSON data) and parse it
-                    JSONObject location = jsonAVL.getJSONObject(i);
-                    ParkingLocation parkingLocation = new ParkingLocation(location);
-
-                    publishProgress(parkingLocation);
-                }
-
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        }
-
-        /**
-         * Initialize the on-street parking location and display it on the map.
-         * @param parkingLocation the on-street parking location to be initialized
-         */
-        private void initializeOnStreetParking(ParkingLocation parkingLocation) {
-
-            onStreetParkings.add(parkingLocation);
-
-            Location[] locations = parkingLocation.getLocation();
-
-            // If there are 2 points, then draw a line from point1 to point2
-            if (locations.length == 2) {
-                // Draw a line
-                PolylineOptions lineOptions = new PolylineOptions()
-                        .add(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()))
-                        .add(new LatLng(locations[1].getLatitude(), locations[1].getLongitude()))
-                        .color(Color.GREEN)
-                        .width(5f);
-
-                Polyline polyline = mMap.addPolyline(lineOptions);
-                onStreetParkingIcons.add(polyline);
-            }
-        }
-
-        /**
-         * Initialize off-street parking location (parking garage) and display it on the map.
-         * @param parkingLocation the off-street parking location to be initialized
-         */
-        private void initializeOffStreetParking(ParkingLocation parkingLocation) {
-
-            offStreetParkings.add(parkingLocation);
-
-            String name = parkingLocation.getName();
-            String description = parkingLocation.getDescription();
-            ParkingLocation.RateSchedule[] rateSchedules = parkingLocation.getRateSchedule();
-            StringBuilder snippet = new StringBuilder();
-
-            if (rateSchedules != null) {
-                for (int i = 0; i < rateSchedules.length; i++) {
-
-                    ParkingLocation.RateSchedule rate = rateSchedules[i];
-
-                    if (!rate.getBeginTime().equals("")) {
-                        snippet.append(rate.getBeginTime() + "-" + rate.getEndTime() + " : $" +
-                                rate.getRate() + " " + rate.getRateQualifier() + "\n");
-                    }
-                }
-            }
-
-            Location[] locations = parkingLocation.getLocation();
-
-            MarkerOptions markerOptions = new MarkerOptions()
-                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_offstreet_parking))
-                    .position(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()))
-                    .title(name)
-                    .snippet(description + "%" + snippet);
-
-            offStreetParkingIcons.add(mMap.addMarker(markerOptions));
-        }
-
-        /**
-         * Get the URI content, which is the data from the SFPark.
-         * @param uri the SFPark URI
-         * @return a string that contains the content (SFPark data) from the SFPark website
-         * @throws Exception any error when doing HTTP request
-         */
-        private String getURIContent(String uri) throws Exception {
-
-            try {
-                HttpGet request = new HttpGet();
-                request.setURI(new URI(uri));
-                request.addHeader("Accept-Encoding", "gzip");
-
-                final HttpParams params = new BasicHttpParams();
-                HttpConnectionParams.setConnectionTimeout(params, 30 * SECOND_IN_MILLIS);
-                HttpConnectionParams.setSoTimeout(params, 30 * SECOND_IN_MILLIS);
-                HttpConnectionParams.setSocketBufferSize(params, SOCKET_BUFFER_SIZE);
-
-                final DefaultHttpClient client = new DefaultHttpClient(params);
-
-                client.addResponseInterceptor(new HttpResponseInterceptor() {
-
-                    @Override
-                    public void process(HttpResponse response, HttpContext context) {
-
-                        final HttpEntity entity = response.getEntity();
-                        final Header encoding = entity.getContentEncoding();
-
-                        if (encoding != null) {
-                            for (HeaderElement element : encoding.getElements()) {
-                                if (element.getName().equalsIgnoreCase("gzip")) {
-                                    response.setEntity(new InflatingEntity(response.getEntity()));
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                });
-
-                return client.execute(request, new BasicResponseHandler());
-
-            } finally {
-                // No clean up code is needed
-            }
-        }
-
-        /**
-         * Base class for wrapping entities. Keeps a wrappedEntity and delegates all calls to it.
-         */
-        private class InflatingEntity extends HttpEntityWrapper {
-
-            public InflatingEntity(HttpEntity wrapped) {
-                super(wrapped);
-            }
-
-            @Override
-            public InputStream getContent() throws IOException {
-                return new GZIPInputStream(wrappedEntity.getContent());
-            }
-
-            @Override
-            public long getContentLength() {
-                return -1;
-            }
+        @Override
+        public long getContentLength() {
+            return -1;
         }
     }
 }
