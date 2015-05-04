@@ -26,7 +26,7 @@
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyCgKuzmuQr3rsT9Mkq-zM0_F2lEVCTK2So"/>
+            android:value=""/>
 
         <activity
             android:name="com.csc413.group9.parkIt.MainActivity"
