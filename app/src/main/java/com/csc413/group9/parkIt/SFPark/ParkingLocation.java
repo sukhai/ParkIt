@@ -448,6 +448,11 @@ public class ParkingLocation {
             return rRateRestriction;
         }
 
+        /**
+         * Get the rate per day for this rate schedule
+         *
+         * @return the rate per day for this rate schedule
+         */
         public String getDay() {
             return rDay;
         }
