@@ -1,7 +1,6 @@
 package com.csc413.group9.parkIt;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.hardware.Sensor;
@@ -23,26 +22,21 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
-import android.view.inputmethod.InputMethodManager;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
-import android.widget.EditText;
 import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
 import com.csc413.group9.parkIt.Database.DatabaseManager;
+import com.csc413.group9.parkIt.Features.Search.Search;
 import com.csc413.group9.parkIt.Features.WarningTimer.WarningTimer;
 import com.csc413.group9.parkIt.SFPark.ParkingInformation;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.Projection;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -53,11 +47,8 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
-import java.util.Set;
 
 public class MainActivity extends ActionBarActivity implements
         GoogleApiClient.ConnectionCallbacks,
@@ -86,18 +77,10 @@ public class MainActivity extends ActionBarActivity implements
     private float mMarkerRotation;
     private boolean mInfoWindowIsShown = false;
     private boolean mapLoaded = false;
-    private boolean showPrice = true;
     private boolean showOnStreetParking = true;
     private boolean showOffStreetParking = true;
 
-    //Variables for new updated Search bar
-    private AutoCompleteTextView actv;
-    private String[] places;
-    Set<String> set;
-    private SharedPreferences storage;
-    private final String SEARCH_KEY = "key";
-
-    private MapView mMapView;
+    private Search mSearch;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,6 +100,7 @@ public class MainActivity extends ActionBarActivity implements
 
         mCurrentLocation = new CurrentLocation(this);
         mParkingInfo = new ParkingInformation(this, mMap);
+        mSearch = new Search(this);
         mWarningTimer = new WarningTimer(this);
         mWarningTimer.bindService();
 
@@ -125,31 +109,12 @@ public class MainActivity extends ActionBarActivity implements
             mWarningTimer.goToParkedLocation();
         }
 
-        storage = getPreferences(MODE_PRIVATE);
-        actv = (AutoCompleteTextView) findViewById(R.id.searchLocation);
-        setAutoList();
+
 
 
     }
 
-    private void setAutoList() {
-        //set = new HashSet<String>();
-        SharedPreferences.Editor edit = storage.edit();
-        set = storage.getStringSet(SEARCH_KEY, null);
-        if(set != null){
-            Object[] objs = set.toArray();
-            places = new String[objs.length];
-            for(int i = 0; i < places.length; i++){
-                places[i] = (String) objs[i];
 
-            }
-        }else{
-            places = new String[]{""};
-            set = new HashSet<String>();
-
-        }
-
-    }
 
     /**
      * Build Google Map.
@@ -255,7 +220,7 @@ public class MainActivity extends ActionBarActivity implements
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
- //       getMenuInflater().inflate(R.menu.menu_main, menu);
+        //       getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
 
@@ -547,10 +512,10 @@ public class MainActivity extends ActionBarActivity implements
         if (addresses != null && addresses.size() > 0) {
 
             String address = addresses.get(0).getAddressLine(0) == null ? "" :
-                             addresses.get(0).getAddressLine(0);
+                    addresses.get(0).getAddressLine(0);
 
             String postalCode = addresses.get(0).getPostalCode() == null ? "" :
-                                addresses.get(0).getPostalCode().split(" ")[0];
+                    addresses.get(0).getPostalCode().split(" ")[0];
 
             addr = address + ", " + postalCode;
         }
@@ -576,76 +541,9 @@ public class MainActivity extends ActionBarActivity implements
         }
     }
 
-    public void geolocate(View v) throws IOException {
+    public void searchLocation(View view) throws Exception {
 
-        hideKeyboard(v);
-//        EditText et = (EditText) findViewById(R.id.searchLocation);
-//        String location = et.getText().toString(); //it returns the input the user typed in
-
-        boolean duplicated = false;
-        AutoCompleteTextView actv = (AutoCompleteTextView) findViewById(R.id.searchLocation);
-        String location = actv.getText().toString();
-
-//        if(set.contains(location)){
-//            duplicated = true;
-
-
-//        }
-
-        for(String place: set){
-            if (location.trim().equalsIgnoreCase(place))
-                duplicated = true;
-
-        }
-
-        if(!duplicated){
-            set.add(location);
-            Object[] object = set.toArray();
-
-            places = new String[object.length];
-            for(int i = 0; i < places.length; i++){
-                places[i] = (String) object[i];
-            }
-
-            SharedPreferences.Editor editor = storage.edit();
-            editor.putStringSet(SEARCH_KEY, set);
-            editor.commit();
-            updateView();
-
-        }
-
-        Geocoder gc = new Geocoder(this); //locate the location [Google Maps feature]
-
-        //returns list of address from the literal location
-        List<Address> addressList = gc.getFromLocationName(location, 1); //1 means gives you 1 address
-        Address address = addressList.get(0); //that 1 address would be the first one from the list
-        double lat = address.getLatitude(); //gets the latitude from the address
-        double log = address.getLongitude(); //gets the longtitude from the address
-        //et.setText(""); //reset to empty the text field
-        gotoLocation(lat, log, location); //go to that location
-
-
-    }
-
-    private void updateView() {
-        ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, places);
-        actv.setAdapter(adapter);
-    }
-
-    //hides keyboard
-    private void hideKeyboard(View v) {
-        InputMethodManager imm = (InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
-    }
-
-    //class that go to the searched location
-    private void gotoLocation(double lat, double log, String location) {
-        LatLng mCurrentLatLng = new LatLng(lat, log); //constructor
-
-        //Camera updates
-        CameraUpdate update = CameraUpdateFactory.newLatLngZoom(mCurrentLatLng, CAMERA_ZOOM_LEVEL);
-        mMap.moveCamera(update); //motion event to move the camera (can use animate)
-        mMap.addMarker(new MarkerOptions().position(mCurrentLatLng).title(location)); //puts marker
+        mSearch.geolocate(view);
     }
 
     private class MarkerClickedListener implements GoogleMap.OnMarkerClickListener {
