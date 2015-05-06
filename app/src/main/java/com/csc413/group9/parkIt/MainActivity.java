@@ -1,6 +1,7 @@
 package com.csc413.group9.parkIt;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.hardware.Sensor;
@@ -23,6 +24,8 @@ import android.view.ViewGroup.LayoutParams;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.PopupWindow;
 import android.widget.TextView;
@@ -50,8 +53,11 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
 
 public class MainActivity extends ActionBarActivity implements
         GoogleApiClient.ConnectionCallbacks,
@@ -84,6 +90,13 @@ public class MainActivity extends ActionBarActivity implements
     private boolean showOnStreetParking = true;
     private boolean showOffStreetParking = true;
 
+    //Variables for new updated Search bar
+    private AutoCompleteTextView actv;
+    private String[] places;
+    Set<String> set;
+    private SharedPreferences storage;
+    private final String SEARCH_KEY = "key";
+
     private MapView mMapView;
 
     @Override
@@ -111,6 +124,31 @@ public class MainActivity extends ActionBarActivity implements
             startedFromNotification = false;
             mWarningTimer.goToParkedLocation();
         }
+
+        storage = getPreferences(MODE_PRIVATE);
+        actv = (AutoCompleteTextView) findViewById(R.id.searchLocation);
+        setAutoList();
+
+
+    }
+
+    private void setAutoList() {
+        //set = new HashSet<String>();
+        SharedPreferences.Editor edit = storage.edit();
+        set = storage.getStringSet(SEARCH_KEY, null);
+        if(set != null){
+            Object[] objs = set.toArray();
+            places = new String[objs.length];
+            for(int i = 0; i < places.length; i++){
+                places[i] = (String) objs[i];
+
+            }
+        }else{
+            places = new String[]{""};
+            set = new HashSet<String>();
+
+        }
+
     }
 
     /**
@@ -541,8 +579,41 @@ public class MainActivity extends ActionBarActivity implements
     public void geolocate(View v) throws IOException {
 
         hideKeyboard(v);
-        EditText et = (EditText) findViewById(R.id.searchLocation);
-        String location = et.getText().toString(); //it returns the input the user typed in
+//        EditText et = (EditText) findViewById(R.id.searchLocation);
+//        String location = et.getText().toString(); //it returns the input the user typed in
+
+        boolean duplicated = false;
+        AutoCompleteTextView actv = (AutoCompleteTextView) findViewById(R.id.searchLocation);
+        String location = actv.getText().toString();
+
+//        if(set.contains(location)){
+//            duplicated = true;
+
+
+//        }
+
+        for(String place: set){
+            if (location.trim().equalsIgnoreCase(place))
+                duplicated = true;
+            
+        }
+
+        if(!duplicated){
+            set.add(location);
+            Object[] object = set.toArray();
+
+            places = new String[object.length];
+            for(int i = 0; i < places.length; i++){
+                places[i] = (String) object[i];
+            }
+
+            SharedPreferences.Editor editor = storage.edit();
+            editor.putStringSet(SEARCH_KEY, set);
+            editor.commit();
+            updateView();
+
+        }
+
         Geocoder gc = new Geocoder(this); //locate the location [Google Maps feature]
 
         //returns list of address from the literal location
@@ -550,10 +621,15 @@ public class MainActivity extends ActionBarActivity implements
         Address address = addressList.get(0); //that 1 address would be the first one from the list
         double lat = address.getLatitude(); //gets the latitude from the address
         double log = address.getLongitude(); //gets the longtitude from the address
-        et.setText(""); //reset to empty the text field
+        //et.setText(""); //reset to empty the text field
         gotoLocation(lat, log, location); //go to that location
 
 
+    }
+
+    private void updateView() {
+        ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, places);
+        actv.setAdapter(adapter);
     }
 
     //hides keyboard

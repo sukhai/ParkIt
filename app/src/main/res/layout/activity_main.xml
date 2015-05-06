@@ -17,12 +17,25 @@
             android:text="Search"
             android:layout_gravity="left|center_vertical"/>
 
-        <EditText
+        <!--<EditText-->
+            <!--android:id="@+id/searchLocation"-->
+            <!--android:layout_width="wrap_content"-->
+            <!--android:layout_height="wrap_content"-->
+            <!--android:layout_gravity="center|center_vertical"-->
+            <!--android:ems="12"/>-->
+
+        <AutoCompleteTextView
             android:id="@+id/searchLocation"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center|center_vertical"
-            android:ems="12"/>
+            android:ems="12"
+            android:linksClickable="false"
+            android:maxLines="1"
+            android:inputType="text"
+            android:hint="Enter Address or Zip Code">
+        <requestFocus />
+        </AutoCompleteTextView>
 
         <Button
             android:id="@+id/searchButton"
