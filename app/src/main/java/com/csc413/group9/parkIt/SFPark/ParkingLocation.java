@@ -33,6 +33,7 @@ public class ParkingLocation {
     private static final String KEY_LOCATION           = "LOC";
     private static final String KEY_OPERATION_HOURS    = "OPHRS";
     private static final String KEY_RATES              = "RATES";
+    private static final String KEY_DAY                = "DAY";
 
     // Operating hours keys, for off-street parking only
     private static final String KEY_OPERATION_SCHEDULE = "OPS";
@@ -368,11 +369,13 @@ public class ParkingLocation {
         private String rDescription;            // Description of the rate schedule
         private String rRateQualifier;          // Rate qualifier e.g. Per Hr
         private String rRateRestriction;        // Rate restriction
+        private String rDay;                    // Rate per day
 
         /**
          * The constructor that takes in a JSON object and get the values for this class' members.
          * The JSON object may or may not contains the following data for the rate schedule (begin
          * time, end time, applicable rate, description, rate qualifier, and/or rate restriction).
+         *
          * @param rate the JSON object that contains the rate schedule
          * @throws JSONException any error when parsing the JSON object's data
          */
@@ -388,10 +391,12 @@ public class ParkingLocation {
             rDescription = rate.has(KEY_DESCRIPTION) ? rate.getString(KEY_DESCRIPTION) : "";
             rRateQualifier = rate.has(KEY_RATE_QUALIFIER) ? rate.getString(KEY_RATE_QUALIFIER) : "";
             rRateRestriction = rate.has(KEY_RATE_RESTRICTION) ? rate.getString(KEY_RATE_RESTRICTION) : "";
+            rDay = rate.has(KEY_DAY) ? rate.getString(KEY_DAY) : "";
         }
 
         /**
          * Get the begin time for this rate schedule.
+         *
          * @return the begin time for this rate schedule
          */
         public String getBeginTime() {
@@ -400,6 +405,7 @@ public class ParkingLocation {
 
         /**
          * Get the end time for this rate schedule.
+         *
          * @return the end time for this rate schedule
          */
         public String getEndTime() {
@@ -408,6 +414,7 @@ public class ParkingLocation {
 
         /**
          * Get the applicable rate for this rate schedule.
+         *
          * @return the applicable rate for this rate schedule
          */
         public String getRate() {
@@ -416,6 +423,7 @@ public class ParkingLocation {
 
         /**
          * Get the description for this rate schedule.
+         *
          * @return the description for this rate schedule
          */
         public String getDescription() {
@@ -424,6 +432,7 @@ public class ParkingLocation {
 
         /**
          * Get the rate qualifier for this rate schedule, e.g. Per Hr.
+         *
          * @return the rate qualifier for this rate schedule, e.g. Per Hr
          */
         public String getRateQualifier() {
@@ -432,10 +441,20 @@ public class ParkingLocation {
 
         /**
          * Get the rate restriction for this rate schedule.
+         *
          * @return the rate restriction for this rate schedule
          */
         public String getRateRestriction() {
             return rRateRestriction;
+        }
+
+        /**
+         * Get the rate per day for this rate schedule
+         *
+         * @return the rate per day for this rate schedule
+         */
+        public String getDay() {
+            return rDay;
         }
     }
 }
