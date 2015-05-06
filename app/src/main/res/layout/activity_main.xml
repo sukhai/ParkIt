@@ -43,7 +43,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="right|center_vertical"
             android:text="Go!"
-            android:onClick="geolocate"/>
+            android:onClick="searchLocation"/>
 
 
 
