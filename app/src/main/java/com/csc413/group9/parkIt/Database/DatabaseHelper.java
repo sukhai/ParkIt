@@ -84,9 +84,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     // Columns and table of the recent searched location table
     public static final int RECENT_LOCATION_MAX_ENTRIES = 5;
     public static final String TABLE_NAME_RECENT = "Recent";
-    public static final String COLUMN_RECENT_NAME = "Name";
     public static final String COLUMN_RECENT_ADDRESS = "Address";
-    public static final String COLUMN_RECENT_PHONE = "Phone";
     public static final String COLUMN_RECENT_LATITUDE = "Latitude";
     public static final String COLUMN_RECENT_LONGITUDE = "Longitude";
 
@@ -148,11 +146,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String SQL_CREATE_TABLE_RECENT =
             "CREATE TABLE " + TABLE_NAME_RECENT + " (" +
                     COLUMN_ID + " INTEGER PRIMARY KEY, " +
-                    COLUMN_RECENT_NAME + TEXT_TYPE + COMMA +
                     COLUMN_RECENT_ADDRESS + TEXT_TYPE + COMMA +
-                    COLUMN_RECENT_PHONE + TEXT_TYPE + COMMA +
                     COLUMN_RECENT_LATITUDE + TEXT_TYPE + COMMA +
-                    COLUMN_RECENT_LONGITUDE + TEXT_TYPE + COMMA +
+                    COLUMN_RECENT_LONGITUDE + TEXT_TYPE +
                     " )";
 
     // SQL statement of the recent searched location table deletion
@@ -181,7 +177,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         db.execSQL(SQL_CREATE_TABLE_LOCATION);
         db.execSQL(SQL_CREATE_TABLE_PARKED);
-//        db.execSQL(SQL_CREATE_TABLE_RECENT);
+        db.execSQL(SQL_CREATE_TABLE_RECENT);
     }
 
     @Override
@@ -190,7 +186,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         // Clear all data
         db.execSQL(SQL_DELETE_TABLE_LOCATION);
         db.execSQL(SQL_DELETE_TABLE_PARKED);
-//        db.execSQL(SQL_DELETE_TABLE_RECENT);
+        db.execSQL(SQL_DELETE_TABLE_RECENT);
 
         // Recreate tables
         onCreate(db);
