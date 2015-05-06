@@ -55,6 +55,15 @@ public class ParkingInformation {
     private static final String SERVICE_URL = "http://api.sfpark.org/sfpark/rest/availabilityservice?radius=1000.0&response=json&version=1.0&pricing=yes";
 
     /**
+     *SFSU URL parking lots containing parking data this application needs.
+     */
+    private static final String google_URL = "https://docs.google.com/document/d/15QUYceBcLUVLk398dTuCuiHv98Nq32YT48pcYT-iUMg/edit"
+
+    /**
+     * content of SFSU Parking URL
+     */
+    private String fileContent;
+    /**
      * A reference to the application's context.
      */
     private Context mContext;
@@ -90,6 +99,11 @@ public class ParkingInformation {
     private ArrayList<Marker> offStreetParkingIcons;
 
     /**
+     *
+     */
+    private boolean sfsuParkDataReady = false;
+
+    /**
      * Flag for the SFPark data readiness. Default to false (not ready).
      */
     private boolean sfParkDataReady = false;
@@ -117,8 +131,16 @@ public class ParkingInformation {
         initializeArrays();
 
         getSFParkData();
+        getSFSUParkData();
     }
 
+    /**
+     *
+     * @return
+     */
+    public boolean isSfSUParkDataReady(){
+       return sfsuParkDataReady;
+    }
     /**
      * Determine if the SFPark data is ready.
      * @return true if the SFPark data is ready, false otherwise
@@ -203,6 +225,13 @@ public class ParkingInformation {
     }
 
     /**
+     *
+     */
+    private void getSFSUParkData(){
+        LoadSFSUParkData sfsu = new LoadSFSUParkData();
+        sfsu.execute();
+    }
+    /**
      * Initialize onStreetParkings, offStreetParkings, onStreetParkingIcons, and
      * offStreetParkingIcons arrays.
      */
@@ -232,6 +261,312 @@ public class ParkingInformation {
     /**
      * A class that load, read, and display the SFPark data on the Google map. This class will
      * perform most of the task on the background.
+     */
+    private class LoadSFSUParkData extends AsyncTask<Void, ParkingLocation, Void> {
+        /**
+         * Default wait time for  HTTP connection.
+         */
+        private static final int SECOND_IN_MILLIS = (int) DateUtils.SECOND_IN_MILLIS;
+
+        /**
+         * Default socket buffer size for HTTP connection.
+         */
+        private static final int SOCKET_BUFFER_SIZE = 8192;
+        /**
+         * The progress dialog that will be shown when fetching the data from SFPark.
+         */
+        private ProgressDialog progressDialog;
+
+        /**
+         * A date format with the format of HH:mm.
+         */
+        private DateFormat dateFormat = new SimpleDateFormat("HH:mm");
+
+        /**
+         * A reference to the current hour and minute
+         */
+        private Date currentTime;
+
+        @Override
+        protected void onPreExecute() {
+
+            try {
+                progressDialog = new ProgressDialog(mContext);
+                progressDialog.setTitle("Please wait");
+                progressDialog.setMessage("Displaying parking data ...");
+                progressDialog.show();
+                progressDialog.setCancelable(false);
+
+                currentTime = dateFormat.parse(dateFormat.format(new Date(System.currentTimeMillis())));
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+
+            loadSFSUParkData();
+            readSFSUParkData();
+
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(ParkingLocation... locations) {
+
+            if (locations[0].isOnStreet()) {
+                initializeOnStreetParking(locations[0]);
+            } else {
+                initializeOffStreetParking(locations[0]);
+            }
+        }
+
+        @Override
+        protected void onPostExecute(Void v) {
+
+            sfsuParkDataReady = true;
+
+            progressDialog.dismiss();
+        }
+
+        /**
+         * Load SFSU Parking data from the GSP.txt.
+         */
+        private void loadSFSUParkData() {
+
+            if (fileContent != null)
+                return;
+
+            try {
+                fileContent = getFileContent(google_URL);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+
+        /**
+         * Read the SFSU Park data after it is loaded into the application.
+         */
+        private void readSFSUParkData() {
+
+            try {
+                // Don't do anything if there is nothing available in the SFPark URL
+                if (fileContent == null || fileContent.equals(""))
+                    return;
+
+                JSONObject fileObject = new JSONObject(fileContent);
+                JSONArray jsonFile = fileObject.has("AVL") ? fileObject.getJSONArray("AVL") : null;
+
+                if (jsonFile == null)
+                    return;
+
+                for (int i = 0; i < jsonFile.length(); i++) {
+                    // Get the file value (a location JSON data) and parse it
+                    JSONObject coordinate = jsonFile.getJSONObject(i);
+                    ParkingLocation parkingLocation = new ParkingLocation(coordinate);
+
+                    publishProgress(parkingLocation);
+                }
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+
+        /**
+         * Initialize the on-street parking location and display it on the map.
+         * @param parkingLocation the on-street parking location to be initialized
+         */
+        private void initializeOnStreetParking(ParkingLocation parkingLocation) {
+
+            onStreetParkings.add(parkingLocation);
+
+            // If it is street cleaning time now, then don't show the line
+            ParkingLocation.RateSchedule[] rateSchedules = parkingLocation.getRateSchedule();
+            for (int i = 0; i < rateSchedules.length; i++) {
+                ParkingLocation.RateSchedule rateSchedule = rateSchedules[i];
+
+                if (rateSchedule.getRateRestriction().equals(ParkingLocation.VALUE_STREET_SWEEP)) {
+                    if (!passedTime(rateSchedule.getEndTime())) {
+                        return;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            Location[] locations = parkingLocation.getLocation();
+
+            // If there are 2 points, then draw a line from point1 to point2
+            if (locations.length == 2) {
+                // Draw a line
+                PolylineOptions lineOptions = new PolylineOptions()
+                        .add(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()))
+                        .add(new LatLng(locations[1].getLatitude(), locations[1].getLongitude()))
+                        .color(Color.GREEN)
+                        .width(7f);
+
+                Polyline polyline = mMap.addPolyline(lineOptions);
+                onStreetParkingIcons.add(polyline);
+            }
+        }
+
+        /**
+         * Initialize off-street parking location (parking garage) and display it on the map.
+         * @param parkingLocation the off-street parking location to be initialized
+         */
+        private void initializeOffStreetParking(ParkingLocation parkingLocation) {
+
+            offStreetParkings.add(parkingLocation);
+
+            String name = parkingLocation.getName();
+            String description = parkingLocation.getDescription();
+            ParkingLocation.RateSchedule[] rateSchedules = parkingLocation.getRateSchedule();
+            StringBuilder snippet = new StringBuilder();
+
+            if (rateSchedules != null) {
+                for (int i = 0; i < rateSchedules.length; i++) {
+
+                    ParkingLocation.RateSchedule rate = rateSchedules[i];
+
+                    if (!rate.getBeginTime().equals("")) {
+                        snippet.append(rate.getBeginTime() + "-" + rate.getEndTime() + " : $" +
+                                rate.getRate() + " " + rate.getRateQualifier() + "\n");
+                    }
+                }
+            }
+
+            Location[] locations = parkingLocation.getLocation();
+
+            MarkerOptions markerOptions = new MarkerOptions()
+                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_offstreet_parking))
+                    .position(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()))
+                    .title(name)
+                    .snippet(description + "%" + snippet);
+
+            offStreetParkingIcons.add(mMap.addMarker(markerOptions));
+        }
+
+        /**
+         * Check whether the given time has passed the current time. The given time must be in the
+         * format: HH:mm AM/PM. Return true if the given time has passed the current time, false
+         * otherwise.
+         * @param givenTime the given time in the format HH:mm AM/PM
+         * @return true if the given time has passed the current time, false otherwise
+         */
+        private boolean passedTime(String givenTime) {
+
+            // Parse out the given time from string into integer
+            // Assuming the given time has the format: HH:mm AM
+            String[] time = givenTime.split("\\s+");
+
+            // Assume it is available to park if the given time is in invalid format
+            if (time == null || time.length != 2) {
+                return true;
+            }
+
+            String hourMinute = time[0];        // Should have the format: HH:mm
+            String period = time[1];            // Should contain AM or PM
+
+            String[] hm = hourMinute.split(":");
+
+            if (hm == null || hm.length != 2) {
+                return true;
+            }
+
+            int hour = Integer.parseInt(hm[0]);
+
+            String hhmm = period.equalsIgnoreCase("PM") ?
+                    (Integer.toString(hour + 12) + ":" + hm[1]) :
+                    ("0" + hour + ":" + hm[1]);
+
+            try {
+                Date givenDate = dateFormat.parse(hhmm);
+
+                if (currentTime.before(givenDate)) {
+                    return false;
+                } else {
+                    return true;
+                }
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+            return true;
+        }
+
+        /**
+         * Get the URI content, which is the data from the SFPark.
+         * @param uri the SFPark URI
+         * @return a string that contains the content (SFPark data) from the SFPark website
+         * @throws Exception any error when doing HTTP request
+         */
+        private String getFileContent(String file) throws Exception {
+
+            try {
+                HttpGet request = new HttpGet();
+                request.setURI(new URI(google_URL));
+                request.addHeader("Accept-Encoding", "gzip");
+
+                final HttpParams params = new BasicHttpParams();
+                HttpConnectionParams.setConnectionTimeout(params, 30 * SECOND_IN_MILLIS);
+                HttpConnectionParams.setSoTimeout(params, 30 * SECOND_IN_MILLIS);
+                HttpConnectionParams.setSocketBufferSize(params, SOCKET_BUFFER_SIZE);
+
+                final DefaultHttpClient client = new DefaultHttpClient(params);
+
+                client.addResponseInterceptor(new HttpResponseInterceptor() {
+
+                    @Override
+                    public void process(HttpResponse response, HttpContext context) {
+
+                        final HttpEntity entity = response.getEntity();
+                        final Header encoding = entity.getContentEncoding();
+
+                        if (encoding != null) {
+                            for (HeaderElement element : encoding.getElements()) {
+                                if (element.getName().equalsIgnoreCase("gzip")) {
+                                    response.setEntity(new InflatingEntity(response.getEntity()));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                });
+
+                return client.execute(request, new BasicResponseHandler());
+
+            } finally {
+                // No clean up code is needed
+            }
+        }
+
+        /**
+         * Base class for wrapping entities. Keeps a wrappedEntity and delegates all calls to it.
+         */
+        private class InflatingEntity extends HttpEntityWrapper {
+
+            public InflatingEntity(HttpEntity wrapped) {
+                super(wrapped);
+            }
+
+            @Override
+            public InputStream getContent() throws IOException {
+                return new GZIPInputStream(wrappedEntity.getContent());
+            }
+
+            @Override
+            public long getContentLength() {
+                return -1;
+            }
+        }
+    }
+
+    /**
+     *
      */
     private class LoadSFParkDataTask extends AsyncTask<Void, ParkingLocation, Void> {
 
