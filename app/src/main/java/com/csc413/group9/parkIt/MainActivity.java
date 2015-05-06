@@ -595,7 +595,7 @@ public class MainActivity extends ActionBarActivity implements
         for(String place: set){
             if (location.trim().equalsIgnoreCase(place))
                 duplicated = true;
-            
+
         }
 
         if(!duplicated){
