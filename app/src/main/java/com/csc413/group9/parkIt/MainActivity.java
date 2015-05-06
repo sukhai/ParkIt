@@ -13,15 +13,16 @@ import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v4.app.FragmentActivity;
 import android.view.Gravity;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
+import android.widget.AutoCompleteTextView;
+import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.TimePicker;
@@ -47,10 +48,11 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends ActionBarActivity implements
+public class MainActivity extends FragmentActivity implements
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         GoogleMap.OnMapLoadedCallback,
@@ -73,6 +75,8 @@ public class MainActivity extends ActionBarActivity implements
     private WarningTimer mWarningTimer;
     private PopupWindow mTimerWindow;
     private TimePicker mTimePicker;
+    private PopupWindow mSettingWindow;
+    private PopupWindow mSearchWindow;
     private SensorManager mSensorManager;
     private float mMarkerRotation;
     private boolean mInfoWindowIsShown = false;
@@ -101,6 +105,15 @@ public class MainActivity extends ActionBarActivity implements
         mCurrentLocation = new CurrentLocation(this);
         mParkingInfo = new ParkingInformation(this, mMap);
         mSearch = new Search(this);
+
+        AutoCompleteTextView actv = (AutoCompleteTextView) findViewById(R.id.searchLocation);
+        actv.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+  //              showSearchWindow(v);
+            }
+        });
+
         mWarningTimer = new WarningTimer(this);
         mWarningTimer.bindService();
 
@@ -108,10 +121,6 @@ public class MainActivity extends ActionBarActivity implements
             startedFromNotification = false;
             mWarningTimer.goToParkedLocation();
         }
-
-
-
-
     }
 
 
@@ -191,6 +200,10 @@ public class MainActivity extends ActionBarActivity implements
         if (mTimerWindow != null) {
             mTimerWindow.dismiss();
         }
+
+        if (mSettingWindow != null) {
+            mSettingWindow.dismiss();
+        }
     }
 
     @Override
@@ -215,28 +228,6 @@ public class MainActivity extends ActionBarActivity implements
 
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        //       getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
- /*       int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-*/
-        return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -343,6 +334,189 @@ public class MainActivity extends ActionBarActivity implements
         mTimerWindow.dismiss();
     }
 
+    public void showSettingWindow(View view) {
+
+        // Get the setting view layout
+        LayoutInflater layoutInflater = (LayoutInflater) getBaseContext().getSystemService(LAYOUT_INFLATER_SERVICE);
+        final View settingView = layoutInflater.inflate(R.layout.window_settings, null);
+
+        if (mSettingWindow == null) {
+
+            // Instantiate a popup window
+            mSettingWindow = new PopupWindow(
+                    settingView,
+                    LayoutParams.WRAP_CONTENT,
+                    LayoutParams.WRAP_CONTENT);
+
+            // Add listeners to checkboxes
+            CheckBox checkBoxOnStreet = (CheckBox) settingView.findViewById(R.id.checkbox_onstreet);
+            checkBoxOnStreet.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (mParkingInfo.isSFParkDataReady()) {
+                        showOnStreetParking = ((CheckBox) v).isChecked();
+                        mParkingInfo.highlightStreet(showOnStreetParking, showOffStreetParking);
+                    }
+                }
+            });
+
+            CheckBox checkBoxOffStreet = (CheckBox) settingView.findViewById(R.id.checkbox_offstreet);
+            checkBoxOffStreet.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (mParkingInfo.isSFParkDataReady()) {
+                        showOffStreetParking = ((CheckBox) v).isChecked();
+                        mParkingInfo.highlightStreet(showOnStreetParking, showOffStreetParking);
+                    }
+                }
+            });
+        }
+
+        // Show the popup window in the center of the screen
+        mSettingWindow.showAtLocation(settingView, Gravity.CENTER, 0, 0);
+    }
+
+    public void closeSettingWindow(View view) {
+        mSettingWindow.dismiss();
+    }
+
+    public void showSearchWindow(View view) {
+
+        // Get the search view layout
+        LayoutInflater layoutInflater = (LayoutInflater) getBaseContext().getSystemService(LAYOUT_INFLATER_SERVICE);
+        final View searchView = layoutInflater.inflate(R.layout.window_search, null);
+
+        if (mSearchWindow == null) {
+
+            // Instantiate a popup window
+            mSearchWindow = new PopupWindow(
+                    searchView,
+                    LayoutParams.WRAP_CONTENT,
+                    LayoutParams.WRAP_CONTENT);
+
+            addSearchButtonListener(view);
+        }
+
+        ArrayList<Button> buttons = getSearchButtonsList(view);
+
+        mSearch.addAddressToSearchButtons(buttons);
+
+        // Show the popup window in the center of the screen
+        mSearchWindow.showAtLocation(searchView, Gravity.CENTER, 0, 0);
+    }
+
+    private void addSearchButtonListener(View searchView) {
+
+        Button button1 = (Button) searchView.findViewById(R.id.search_location1);
+        button1.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Button button = (Button) v;
+
+                if (!button.getText().equals("")) {
+
+                    LatLng latLng = mSearch.getLatLng(button.getText().toString());
+
+                    if (latLng != null) {
+                        placeMarker(latLng);
+                    }
+                }
+            }
+        });
+
+        Button button2 = (Button) searchView.findViewById(R.id.search_location2);
+        button2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Button button = (Button) v;
+
+                if (!button.getText().equals("")) {
+
+                    LatLng latLng = mSearch.getLatLng(button.getText().toString());
+
+                    if (latLng != null) {
+                        placeMarker(latLng);
+                    }
+                }
+            }
+        });
+
+        Button button3 = (Button) searchView.findViewById(R.id.search_location3);
+        button3.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Button button = (Button) v;
+
+                if (!button.getText().equals("")) {
+
+                    LatLng latLng = mSearch.getLatLng(button.getText().toString());
+
+                    if (latLng != null) {
+                        placeMarker(latLng);
+                    }
+                }
+            }
+        });
+
+        Button button4 = (Button) searchView.findViewById(R.id.search_location4);
+        button4.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Button button = (Button) v;
+
+                if (!button.getText().equals("")) {
+
+                    LatLng latLng = mSearch.getLatLng(button.getText().toString());
+
+                    if (latLng != null) {
+                        placeMarker(latLng);
+                    }
+                }
+            }
+        });
+
+        Button button5 = (Button) searchView.findViewById(R.id.search_location5);
+        button5.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Button button = (Button) v;
+
+                if (!button.getText().equals("")) {
+
+                    LatLng latLng = mSearch.getLatLng(button.getText().toString());
+
+                    if (latLng != null) {
+                        placeMarker(latLng);
+                    }
+                }
+            }
+        });
+    }
+
+    private ArrayList<Button> getSearchButtonsList(View searchView) {
+
+        ArrayList<Button> buttons = new ArrayList<Button>();
+
+        Button button1 = (Button) searchView.findViewById(R.id.search_location1);
+        Button button2 = (Button) searchView.findViewById(R.id.search_location2);
+        Button button3 = (Button) searchView.findViewById(R.id.search_location3);
+        Button button4 = (Button) searchView.findViewById(R.id.search_location4);
+        Button button5 = (Button) searchView.findViewById(R.id.search_location5);
+
+        buttons.add(button1);
+        buttons.add(button2);
+        buttons.add(button3);
+        buttons.add(button4);
+        buttons.add(button5);
+
+        return buttons;
+    }
+
     /**
      * Track device's current location. The GPS will keep track of the location of the device
      * until somewhere on the map is clicked.
@@ -374,6 +548,11 @@ public class MainActivity extends ActionBarActivity implements
                 placeCurrentLocationMarker(latLng);
             }
         }
+    }
+
+    public void searchLocation(View view) throws Exception {
+
+        mSearch.geoLocate(view);
     }
 
     public void placeCurrentLocationMarker(LatLng location) {
@@ -539,11 +718,6 @@ public class MainActivity extends ActionBarActivity implements
             GooglePlayServicesUtil.getErrorDialog(resultCode, this, 0).show();
             return false;
         }
-    }
-
-    public void searchLocation(View view) throws Exception {
-
-        mSearch.geolocate(view);
     }
 
     private class MarkerClickedListener implements GoogleMap.OnMarkerClickListener {
