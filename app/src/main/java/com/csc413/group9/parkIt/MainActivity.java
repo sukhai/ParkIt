@@ -20,7 +20,6 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
-import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.PopupWindow;
@@ -39,7 +38,6 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.Projection;
-import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
@@ -57,6 +55,8 @@ public class MainActivity extends FragmentActivity implements
         GoogleApiClient.OnConnectionFailedListener,
         GoogleMap.OnMapLoadedCallback,
         SensorEventListener {
+
+    private static final String KEY_SFPARK_DATA_READY = "ParkIt.SFPark_Data_Ready";
 
     public static boolean startedFromNotification = false;
 
@@ -103,17 +103,20 @@ public class MainActivity extends FragmentActivity implements
         buildGoogleMap();
 
         mCurrentLocation = new CurrentLocation(this);
+
         mParkingInfo = new ParkingInformation(this, mMap);
+
+        if (savedInstanceState == null) {
+            mParkingInfo.saveParkingMarkersFragment();
+            mParkingInfo.getSFParkData();
+        } else {
+            mParkingInfo.restoreParkingMarkersFragment();
+            boolean ready = savedInstanceState.getBoolean(KEY_SFPARK_DATA_READY, false);
+            mParkingInfo.setSfParkDataReady(ready);
+            mParkingInfo.getSFParkData();
+        }
+
         mSearch = new Search(this);
-
-        AutoCompleteTextView actv = (AutoCompleteTextView) findViewById(R.id.searchLocation);
-        actv.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-  //              showSearchWindow(v);
-            }
-        });
-
         mWarningTimer = new WarningTimer(this);
         mWarningTimer.bindService();
 
@@ -123,15 +126,19 @@ public class MainActivity extends FragmentActivity implements
         }
     }
 
-
-
     /**
      * Build Google Map.
      */
     private synchronized void buildGoogleMap() {
 
-        mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
-                .getMap();
+        android.support.v4.app.FragmentManager fragmentManager = getSupportFragmentManager();
+
+        RetainMapFragment mapFragment =
+                (RetainMapFragment) fragmentManager.findFragmentById(R.id.map);
+
+        mMap = mapFragment.getMap();
+
+ //       mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map)).getMap();
 
         mMap.setBuildingsEnabled(false);
         mMap.setIndoorEnabled(false);
@@ -177,6 +184,23 @@ public class MainActivity extends FragmentActivity implements
     }
 
     @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        outState.putBoolean(KEY_SFPARK_DATA_READY, mParkingInfo.isSFParkDataReady());
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+
+        boolean ready = savedInstanceState.getBoolean(KEY_SFPARK_DATA_READY);
+        mParkingInfo.setSfParkDataReady(ready);
+        mParkingInfo.getSFParkData();
+
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
 
@@ -217,6 +241,11 @@ public class MainActivity extends FragmentActivity implements
     }
 
     @Override
+    protected void onDestroy() {
+        super.onDestroy();
+    }
+
+    @Override
     public void onConnected(Bundle dataBundle) {
 
         trackDeviceLocation(null);
@@ -249,9 +278,11 @@ public class MainActivity extends FragmentActivity implements
 
         mapLoaded = true;
 
-        if (mParkingInfo.isSFParkDataReady())
-            mParkingInfo.highlightStreet(showOnStreetParking, showOffStreetParking);
+        if (mCurrentLocation.canGetLocation()) {
+            Location location = mCurrentLocation.getLocation();
 
+            placeCurrentLocationMarker(new LatLng(location.getLatitude(), location.getLongitude()));
+        }
     }
 
     /**
@@ -574,7 +605,7 @@ public class MainActivity extends FragmentActivity implements
                 mCLMarker.setVisible(true);
                 mCLMarkerCircle.setVisible(true);
 
-                animateMarker(location, false);
+                animateMarker(location);
 
             } else {
                 // Create the marker
@@ -634,7 +665,7 @@ public class MainActivity extends FragmentActivity implements
         }
     }
 
-    public void animateMarker(final LatLng toPosition, final boolean hideMarker) {
+    public void animateMarker(final LatLng toPosition) {
 
         final Handler handler = new Handler();
         final long start = SystemClock.uptimeMillis();
@@ -661,14 +692,6 @@ public class MainActivity extends FragmentActivity implements
                 if (t < 1.0) {
                     // Post again 16ms later.
                     handler.postDelayed(this, 16);
-                } else {/*
-                    if (hideMarker) {
-                        mCLMarker.setVisible(false);
-                        mCLMarkerCircle.setVisible(false);
-                    } else {
-                        mCLMarker.setVisible(true);
-                        mCLMarkerCircle.setVisible(true);
-                    }*/
                 }
             }
         });
