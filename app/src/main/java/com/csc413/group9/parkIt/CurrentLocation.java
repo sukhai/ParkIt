@@ -33,12 +33,12 @@ public class CurrentLocation extends Service implements LocationListener {
     /**
      * The minimum time before getting a new location update. (5 seconds)
      */
-    private static final long MIN_TIME = 1000 * 5;
+    private static final long MIN_TIME = 0;
 
     /**
      * The minimum distance before getting a new location update. (2 meters)
      */
-    private static final long MIN_DISTANCE = 2;
+    private static final long MIN_DISTANCE = 0;
 
     /**
      * The main activity.
@@ -85,7 +85,7 @@ public class CurrentLocation extends Service implements LocationListener {
             setLastKnownLocation(location);
         }
 
-        getLocation();
+        startLocationUpdates();
     }
 
     /**
@@ -99,30 +99,24 @@ public class CurrentLocation extends Service implements LocationListener {
             // Get the location service
             mLocationManager = (LocationManager) mMainActivity.getSystemService(LOCATION_SERVICE);
 
+            // Check whether the network is enabled on the device
+            boolean networkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
             // Check whether the GPS is enabled on the device
             boolean GPSEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
 
-            if (GPSEnabled && keepTrack) {
+            if ((GPSEnabled || networkEnabled) && keepTrack) {
 
                 canGetLocation = true;
 
-                mLocationManager.requestLocationUpdates(
-                        LocationManager.GPS_PROVIDER,
-                        MIN_TIME, MIN_DISTANCE, this);
+                // If the network is enabled, then get the network location
+                if (networkEnabled) {
+                    useNetworkLocation();
+                }
 
-                if (mLocationManager != null) {
-                    mLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-
-                    // Draw the current location on the map and save the coordinate to database
-                    if (mLocation != null) {
-
-                        if (mMainActivity.isMapLoaded()) {
-                            mMainActivity.placeCurrentLocationMarker(
-                                    new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
-                        }
-
-                        setLastKnownLocation(mLocation);
-                    }
+                // If GPS is also enabled, then get the GPS location
+                if (GPSEnabled) {
+                    useGPSLocation();
                 }
 
                 // If network or GPS is available but unable to get the location, then display
@@ -147,17 +141,17 @@ public class CurrentLocation extends Service implements LocationListener {
      * Start the location updates. The location updates will only start and work if the network or
      * GPS is enabled.
      */
-    protected void startLocationUpdates() {
+    public void startLocationUpdates() {
 
         keepTrack = true;
 
-        getLocation();
+   //     getLocation();
     }
 
     /**
      * Stop the location updates.
      */
-    protected void stopLocationUpdates() {
+    public void stopLocationUpdates() {
 
         keepTrack = false;
 
@@ -233,6 +227,44 @@ public class CurrentLocation extends Service implements LocationListener {
         DatabaseManager.getInstance().close();
 
         return location;
+    }
+
+    private void useNetworkLocation() {
+
+        mLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER,
+                MIN_TIME, MIN_DISTANCE, this);
+
+        if (mLocationManager != null) {
+            mLocation = mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+
+            // Draw the current location on the map and save the coordinate to database
+            if (mLocation != null) {
+
+                mMainActivity.placeCurrentLocationMarker(
+                        new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
+
+                setLastKnownLocation(mLocation);
+            }
+        }
+    }
+
+    private void useGPSLocation() {
+
+        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+                MIN_TIME, MIN_DISTANCE, this);
+
+        if (mLocationManager != null) {
+            mLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
+            // Draw the current location on the map and save the coordinate to database
+            if (mLocation != null) {
+
+                mMainActivity.placeCurrentLocationMarker(
+                        new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
+
+                setLastKnownLocation(mLocation);
+            }
+        }
     }
 
     /**
