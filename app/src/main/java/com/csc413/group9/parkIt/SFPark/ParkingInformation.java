@@ -1,7 +1,10 @@
 package com.csc413.group9.parkIt.SFPark;
 
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.res.AssetManager;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
@@ -32,14 +35,19 @@ import org.apache.http.protocol.HttpContext;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.zip.GZIPInputStream;
+import java.util.Scanner;
 
 /**
  * This class handles the parking information around the device's current location. This class will
@@ -57,8 +65,8 @@ public class ParkingInformation {
     /**
      *SFSU URL parking lots containing parking data this application needs.
      */
-    private static final String google_URL = "https://docs.google.com/document/d/15QUYceBcLUVLk398dTuCuiHv98Nq32YT48pcYT-iUMg/edit";
-
+    //private static final String google_URL = "https://docs.google.com/document/d/15QUYceBcLUVLk398dTuCuiHv98Nq32YT48pcYT-iUMg/edit";
+    private static final String GPS_Path = "/GPS.txt";
     /**
      * content of SFSU Parking URL
      */
@@ -263,7 +271,7 @@ public class ParkingInformation {
     }
 
     /**
-     *
+     *  LoadSFPark
      */
     private class LoadSFParkDataTask extends AsyncTask<Void, ParkingLocation, Void> {
 
@@ -349,7 +357,7 @@ public class ParkingInformation {
                 return;
 
             try {
-                fileContent = getFileContent(google_URL);
+                fileContent = getFileContent(GPS_Path);
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -559,42 +567,25 @@ public class ParkingInformation {
          */
         private String getFileContent(String file) throws Exception {
 
+            AssetManager assetManager = mContext.getResources().getAssets();
+            InputStream inputStream = null;
+            String line = "";
+
+            //mContext.getResources().openRawResource(R.id.);
             try {
-                HttpGet request = new HttpGet();
-                request.setURI(new URI(google_URL));
-                request.addHeader("Accept-Encoding", "gzip");
+                inputStream = assetManager.open("GPS.txt");
+                System.out.printf("File Located");
 
-                final HttpParams params = new BasicHttpParams();
-                HttpConnectionParams.setConnectionTimeout(params, 30 * SECOND_IN_MILLIS);
-                HttpConnectionParams.setSoTimeout(params, 30 * SECOND_IN_MILLIS);
-                HttpConnectionParams.setSocketBufferSize(params, SOCKET_BUFFER_SIZE);
-
-                final DefaultHttpClient client = new DefaultHttpClient(params);
-
-                client.addResponseInterceptor(new HttpResponseInterceptor() {
-
-                    @Override
-                    public void process(HttpResponse response, HttpContext context) {
-
-                        final HttpEntity entity = response.getEntity();
-                        final Header encoding = entity.getContentEncoding();
-
-                        if (encoding != null) {
-                            for (HeaderElement element : encoding.getElements()) {
-                                if (element.getName().equalsIgnoreCase("gzip")) {
-                                    response.setEntity(new InflatingEntity(response.getEntity()));
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                });
-
-                return client.execute(request, new BasicResponseHandler());
-
-            } finally {
-                // No clean up code is needed
+            } catch (IOException ex) {
+                ex.printStackTrace();
             }
+
+            if (inputStream != null){
+                System.out.println("Here!!!!!!!!!!!!!");
+                BufferedReader reader = new BufferedReader( new InputStreamReader(inputStream));
+                line = reader.readLine();
+            }
+            return line;
         }
 
         /**
