@@ -40,6 +40,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.Projection;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -55,27 +56,30 @@ public class MainActivity extends FragmentActivity implements
         SensorEventListener {
 
     private static final String KEY_SFPARK_DATA_READY = "ParkIt.SFPark_Data_Ready";
+    private static final String KEY_CURRENT_LOCATION_MARKER = "ParkIt.Current_Location_Marker";
+    private static final String KEY_CLICKED_LOCATION_MARKER = "ParkIt.Clicked_Location_Marker";
+    private static final String KEY_CLICKED_MARKER_INFO_WINDOW = "ParkIt.Clicked_Marker_Info_Window";
+    private static final String KEY_PARKING_MARKER_INFO_WINDOW = "ParkIt.Parking_Marker_Info_Window";
+    private static final String KEY_CAMERA_POSITION = "ParkIt.Camera_Position";
+
+    private static final float CAMERA_ZOOM_LEVEL = 18f;
 
     public static boolean startedFromNotification = false;
-
-    private static final double SF_LATITUDE = 37.7833;
-    private static final double SF_LONGITUDE = -122.4167;
-    private static final float CAMERA_ZOOM_LEVEL = 18f;
 
     private GoogleMap mMap;
     private Marker mClickedLocationMarker;
     private Marker mParkingGarageMarker;
-    private Marker mCLMarker;
+    private Marker mCurrentLocationMarker;
     private GoogleApiClient mGoogleApiClient;
     private ParkingInformation mParkingInfo;
     private CurrentLocation mCurrentLocation;
     private WarningTimer mWarningTimer;
     private PopupWindow mTimerWindow;
-    private TimePicker mTimePicker;
     private PopupWindow mSettingWindow;
     private SensorManager mSensorManager;
     private float mMarkerRotation;
-    private boolean mInfoWindowIsShown = false;
+    private boolean mParkingMarkerInfoWindow = false;
+    private boolean mClickedMarkerInfoWindow = false;
     private boolean mapLoaded = false;
     private boolean showOnStreetParking = true;
     private boolean showOffStreetParking = true;
@@ -152,7 +156,9 @@ public class MainActivity extends FragmentActivity implements
         mMap.setOnMarkerClickListener(new MarkerClickedListener());
         mMap.setInfoWindowAdapter(new CustomInfoWindowAdapter());
         mMap.setOnMapLoadedCallback(this);
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(SF_LATITUDE, SF_LONGITUDE), 10));
+        
+        // Move camera to San Francisco
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(37.7833, -122.4167), 12));
     }
 
     /**
@@ -182,17 +188,74 @@ public class MainActivity extends FragmentActivity implements
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
 
+        // Store the current marker's data if it exists
+        if (mCurrentLocationMarker != null) {
+            MarkerOptions currentLocationMarker = new MarkerOptions()
+                    .position(mCurrentLocationMarker.getPosition())
+                    .title(mCurrentLocationMarker.getTitle())
+                    .rotation(mClickedLocationMarker.getRotation())
+                    .anchor(0.5f, 0.75f)
+                    .flat(true)
+                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_user));
+
+            mCurrentLocationMarker.remove();
+            outState.putParcelable(KEY_CURRENT_LOCATION_MARKER, currentLocationMarker);
+        }
+
+        // Store the clicked marker's data if it exists
+        if (mClickedLocationMarker != null) {
+            MarkerOptions clickedLocationMarker = new MarkerOptions()
+                    .title(mClickedLocationMarker.getTitle())
+                    .position(mClickedLocationMarker.getPosition());
+
+            mClickedLocationMarker.remove();
+            outState.putParcelable(KEY_CLICKED_LOCATION_MARKER, clickedLocationMarker);
+        }
+
+        // Store the rest of the important data
         outState.putBoolean(KEY_SFPARK_DATA_READY, mParkingInfo.isSFParkDataReady());
+        outState.putBoolean(KEY_CLICKED_MARKER_INFO_WINDOW, mClickedMarkerInfoWindow);
+        outState.putBoolean(KEY_PARKING_MARKER_INFO_WINDOW, mParkingMarkerInfoWindow);
+        outState.putParcelable(KEY_CAMERA_POSITION, mMap.getCameraPosition());
     }
 
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
 
+        // Restore SFPark data
         boolean ready = savedInstanceState.getBoolean(KEY_SFPARK_DATA_READY);
         mParkingInfo.setSfParkDataReady(ready);
         mParkingInfo.getSFParkData();
 
+        // Restore current location marker
+        MarkerOptions currentLocation =
+                (MarkerOptions) savedInstanceState.getParcelable(KEY_CURRENT_LOCATION_MARKER);
+        if (currentLocation != null) {
+            mCurrentLocationMarker = mMap.addMarker(currentLocation);
+        }
+
+        // Restore clicked location marker
+        MarkerOptions clickedLocation =
+                (MarkerOptions) savedInstanceState.getParcelable(KEY_CLICKED_LOCATION_MARKER);
+        if (clickedLocation != null) {
+            mClickedLocationMarker = mMap.addMarker(clickedLocation);
+        }
+
+        // Restore clicked marker's info window
+        mClickedMarkerInfoWindow = savedInstanceState.getBoolean(KEY_CLICKED_MARKER_INFO_WINDOW);
+        if (mClickedMarkerInfoWindow && mClickedLocationMarker != null) {
+            mClickedLocationMarker.showInfoWindow();
+        }
+
+        // Restore parking garage's info window
+        mParkingMarkerInfoWindow = savedInstanceState.getBoolean(KEY_PARKING_MARKER_INFO_WINDOW);
+        if (mParkingMarkerInfoWindow && mParkingGarageMarker != null) {
+            mParkingGarageMarker.showInfoWindow();
+        }
+
+        CameraPosition position = (CameraPosition) savedInstanceState.getParcelable(KEY_CAMERA_POSITION);
+        mMap.moveCamera(CameraUpdateFactory.newCameraPosition(position));
     }
 
     @Override
@@ -264,8 +327,8 @@ public class MainActivity extends FragmentActivity implements
 
         mMarkerRotation = event.values[0];
 
-        if (mCLMarker != null) {
-            mCLMarker.setRotation(mMarkerRotation);
+        if (mCurrentLocationMarker != null) {
+            mCurrentLocationMarker.setRotation(mMarkerRotation);
         }
     }
 
@@ -309,7 +372,7 @@ public class MainActivity extends FragmentActivity implements
                     LayoutParams.WRAP_CONTENT);
 
             // Instantiate a TimePicker and set its starting hour and minute to 0
-            mTimePicker = (TimePicker) timerView.findViewById(R.id.timepicker_warning_timer);
+            TimePicker mTimePicker = (TimePicker) timerView.findViewById(R.id.timepicker_warning_timer);
             mTimePicker.setIs24HourView(true);
             mTimePicker.setCurrentHour(0);
             mTimePicker.setCurrentMinute(0);
@@ -332,16 +395,16 @@ public class MainActivity extends FragmentActivity implements
      */
     public void setWarningTimer(View view) {
 
-        if (mCLMarker == null) {
+        if (mCurrentLocationMarker == null) {
             mTimerWindow.dismiss();
             return;
         }
 
         Location location = new Location("");
-        location.setLatitude(mCLMarker.getPosition().latitude);
-        location.setLongitude(mCLMarker.getPosition().longitude);
+        location.setLatitude(mCurrentLocationMarker.getPosition().latitude);
+        location.setLongitude(mCurrentLocationMarker.getPosition().longitude);
 
-        mWarningTimer.setParkedLocation(getAddress(location), mCLMarker.getPosition());
+        mWarningTimer.setParkedLocation(getAddress(location), mCurrentLocationMarker.getPosition());
         mWarningTimer.setWarningTime();
 
         mTimerWindow.dismiss();
@@ -453,14 +516,14 @@ public class MainActivity extends FragmentActivity implements
             if (mClickedLocationMarker != null)
                 mClickedLocationMarker.remove();
 
-            if (mCLMarker != null) {
+            if (mCurrentLocationMarker != null) {
                 // Show the marker
-                mCLMarker.setVisible(true);
+                mCurrentLocationMarker.setVisible(true);
                 animateMarker(location);
 
             } else {
                 // Create the marker
-                mCLMarker = mMap.addMarker(new MarkerOptions()
+                mCurrentLocationMarker = mMap.addMarker(new MarkerOptions()
                         .title("")
                         .position(location)
                         .rotation(mMarkerRotation)
@@ -481,9 +544,9 @@ public class MainActivity extends FragmentActivity implements
         }
 
         if (mMap != null) {
-            if (mCLMarker != null) {
+            if (mCurrentLocationMarker != null) {
                 // Hide the current location marker
-                mCLMarker.setVisible(false);
+                mCurrentLocationMarker.setVisible(false);
             }
 
             // We only want to remove the marker that is clicked on the map by the user, not
@@ -513,7 +576,7 @@ public class MainActivity extends FragmentActivity implements
         final Handler handler = new Handler();
         final long start = SystemClock.uptimeMillis();
         Projection projection = mMap.getProjection();
-        Point startPoint = projection.toScreenLocation(mCLMarker.getPosition());
+        Point startPoint = projection.toScreenLocation(mCurrentLocationMarker.getPosition());
         final LatLng startLatLng = projection.fromScreenLocation(startPoint);
         final long duration = 500;
 
@@ -527,7 +590,7 @@ public class MainActivity extends FragmentActivity implements
                         / duration);
                 double lng = t * toPosition.longitude + (1 - t) * startLatLng.longitude;
                 double lat = t * toPosition.latitude + (1 - t) * startLatLng.latitude;
-                mCLMarker.setPosition(new LatLng(lat, lng));
+                mCurrentLocationMarker.setPosition(new LatLng(lat, lng));
 
                 if (t < 1.0) {
                     // Post again 16ms later.
@@ -623,8 +686,8 @@ public class MainActivity extends FragmentActivity implements
                 mClickedLocationMarker = marker;
             }
 
-            if (mInfoWindowIsShown) {
-                mInfoWindowIsShown = false;
+            if (mClickedMarkerInfoWindow) {
+                mClickedMarkerInfoWindow = false;
                 marker.hideInfoWindow();
 
                 // If this is the same parking garage marker that has been clicked, do nothing
@@ -648,7 +711,7 @@ public class MainActivity extends FragmentActivity implements
                 return true;
             } else {
                 // No InfoWindow is shown on any of the markers on the map, so show it
-                mInfoWindowIsShown = true;
+                mClickedMarkerInfoWindow = true;
                 return false;
             }
         }
@@ -665,7 +728,7 @@ public class MainActivity extends FragmentActivity implements
         @Override
         public View getInfoWindow(Marker marker) {
 
-            // If the title is an empty string, such as from the mCLMarker, then
+            // If the title is an empty string, such as from the mCurrentLocationMarker, then
             // we don't show any InfoWindow
             if (marker.getTitle().equals(""))
                 return null;
