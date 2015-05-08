@@ -174,8 +174,8 @@ public class WarningTimer {
 
         if (cursor != null) {
             if (cursor.moveToFirst()) {
-                double latitude = cursor.getDouble(2);
-                double longitude = cursor.getDouble(3);
+                double latitude = cursor.getDouble(cursor.getColumnIndex(DatabaseHelper.COLUMN_PARKED_LATITUDE));
+                double longitude = cursor.getDouble(cursor.getColumnIndex(DatabaseHelper.COLUMN_PARKED_LONGITUDE));
                 mMainActivity.placeMarker(new LatLng(latitude, longitude));
             }
 
