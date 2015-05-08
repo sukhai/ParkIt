@@ -480,8 +480,6 @@ public class MainActivity extends FragmentActivity implements
         // Start location tracking
         mCurrentLocation.startLocationUpdates();
 
-        System.err.println("track device location");
-
         // If the GPS is available, then get the current location of the device
         if (mCurrentLocation.canGetLocation()) {
 
