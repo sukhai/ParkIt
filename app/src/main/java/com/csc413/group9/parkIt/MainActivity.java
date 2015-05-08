@@ -1,7 +1,6 @@
 package com.csc413.group9.parkIt;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.Point;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -10,17 +9,19 @@ import android.hardware.SensorManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.support.v4.app.FragmentActivity;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
-import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.PopupWindow;
 import android.widget.TextView;
@@ -39,14 +40,11 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.Projection;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.Circle;
-import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -68,7 +66,6 @@ public class MainActivity extends FragmentActivity implements
     private Marker mClickedLocationMarker;
     private Marker mParkingGarageMarker;
     private Marker mCLMarker;
-    private Circle mCLMarkerCircle;
     private GoogleApiClient mGoogleApiClient;
     private ParkingInformation mParkingInfo;
     private CurrentLocation mCurrentLocation;
@@ -76,7 +73,6 @@ public class MainActivity extends FragmentActivity implements
     private PopupWindow mTimerWindow;
     private TimePicker mTimePicker;
     private PopupWindow mSettingWindow;
-    private PopupWindow mSearchWindow;
     private SensorManager mSensorManager;
     private float mMarkerRotation;
     private boolean mInfoWindowIsShown = false;
@@ -103,6 +99,7 @@ public class MainActivity extends FragmentActivity implements
         buildGoogleMap();
 
         mCurrentLocation = new CurrentLocation(this);
+        trackDeviceLocation(null);
 
         mParkingInfo = new ParkingInformation(this, mMap);
 
@@ -137,8 +134,6 @@ public class MainActivity extends FragmentActivity implements
                 (RetainMapFragment) fragmentManager.findFragmentById(R.id.map);
 
         mMap = mapFragment.getMap();
-
- //       mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map)).getMap();
 
         mMap.setBuildingsEnabled(false);
         mMap.setIndoorEnabled(false);
@@ -242,6 +237,11 @@ public class MainActivity extends FragmentActivity implements
 
     @Override
     protected void onDestroy() {
+
+        if (mCurrentLocation != null) {
+            mCurrentLocation.hideNoGPSAlertMessage();
+        }
+
         super.onDestroy();
     }
 
@@ -278,11 +278,7 @@ public class MainActivity extends FragmentActivity implements
 
         mapLoaded = true;
 
-        if (mCurrentLocation.canGetLocation()) {
-            Location location = mCurrentLocation.getLocation();
-
-            placeCurrentLocationMarker(new LatLng(location.getLatitude(), location.getLongitude()));
-        }
+        mMap.setLocationSource(mCurrentLocation);
     }
 
     /**
@@ -411,143 +407,6 @@ public class MainActivity extends FragmentActivity implements
         mSettingWindow.dismiss();
     }
 
-    public void showSearchWindow(View view) {
-
-        // Get the search view layout
-        LayoutInflater layoutInflater = (LayoutInflater) getBaseContext().getSystemService(LAYOUT_INFLATER_SERVICE);
-        final View searchView = layoutInflater.inflate(R.layout.window_search, null);
-
-        if (mSearchWindow == null) {
-
-            // Instantiate a popup window
-            mSearchWindow = new PopupWindow(
-                    searchView,
-                    LayoutParams.WRAP_CONTENT,
-                    LayoutParams.WRAP_CONTENT);
-
-            addSearchButtonListener(view);
-        }
-
-        ArrayList<Button> buttons = getSearchButtonsList(view);
-
-        mSearch.addAddressToSearchButtons(buttons);
-
-        // Show the popup window in the center of the screen
-        mSearchWindow.showAtLocation(searchView, Gravity.CENTER, 0, 0);
-    }
-
-    private void addSearchButtonListener(View searchView) {
-
-        Button button1 = (Button) searchView.findViewById(R.id.search_location1);
-        button1.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                Button button = (Button) v;
-
-                if (!button.getText().equals("")) {
-
-                    LatLng latLng = mSearch.getLatLng(button.getText().toString());
-
-                    if (latLng != null) {
-                        placeMarker(latLng);
-                    }
-                }
-            }
-        });
-
-        Button button2 = (Button) searchView.findViewById(R.id.search_location2);
-        button2.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                Button button = (Button) v;
-
-                if (!button.getText().equals("")) {
-
-                    LatLng latLng = mSearch.getLatLng(button.getText().toString());
-
-                    if (latLng != null) {
-                        placeMarker(latLng);
-                    }
-                }
-            }
-        });
-
-        Button button3 = (Button) searchView.findViewById(R.id.search_location3);
-        button3.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                Button button = (Button) v;
-
-                if (!button.getText().equals("")) {
-
-                    LatLng latLng = mSearch.getLatLng(button.getText().toString());
-
-                    if (latLng != null) {
-                        placeMarker(latLng);
-                    }
-                }
-            }
-        });
-
-        Button button4 = (Button) searchView.findViewById(R.id.search_location4);
-        button4.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                Button button = (Button) v;
-
-                if (!button.getText().equals("")) {
-
-                    LatLng latLng = mSearch.getLatLng(button.getText().toString());
-
-                    if (latLng != null) {
-                        placeMarker(latLng);
-                    }
-                }
-            }
-        });
-
-        Button button5 = (Button) searchView.findViewById(R.id.search_location5);
-        button5.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                Button button = (Button) v;
-
-                if (!button.getText().equals("")) {
-
-                    LatLng latLng = mSearch.getLatLng(button.getText().toString());
-
-                    if (latLng != null) {
-                        placeMarker(latLng);
-                    }
-                }
-            }
-        });
-    }
-
-    private ArrayList<Button> getSearchButtonsList(View searchView) {
-
-        ArrayList<Button> buttons = new ArrayList<Button>();
-
-        Button button1 = (Button) searchView.findViewById(R.id.search_location1);
-        Button button2 = (Button) searchView.findViewById(R.id.search_location2);
-        Button button3 = (Button) searchView.findViewById(R.id.search_location3);
-        Button button4 = (Button) searchView.findViewById(R.id.search_location4);
-        Button button5 = (Button) searchView.findViewById(R.id.search_location5);
-
-        buttons.add(button1);
-        buttons.add(button2);
-        buttons.add(button3);
-        buttons.add(button4);
-        buttons.add(button5);
-
-        return buttons;
-    }
-
     /**
      * Track device's current location. The GPS will keep track of the location of the device
      * until somewhere on the map is clicked.
@@ -557,6 +416,8 @@ public class MainActivity extends FragmentActivity implements
 
         // Start location tracking
         mCurrentLocation.startLocationUpdates();
+
+        System.err.println("track device location");
 
         // If the GPS is available, then get the current location of the device
         if (mCurrentLocation.canGetLocation()) {
@@ -569,15 +430,7 @@ public class MainActivity extends FragmentActivity implements
             }
 
         } else {
-            // Otherwise just get the last known location that is stored in the database
-
-            if (mapLoaded) {
-                String[] location = mCurrentLocation.getLastKnownLocation();
-
-                LatLng latLng = new LatLng(Double.parseDouble(location[1]), Double.parseDouble(location[2]));
-
-                placeCurrentLocationMarker(latLng);
-            }
+            mCurrentLocation.showNoGPSAlertMessage();
         }
     }
 
@@ -600,11 +453,9 @@ public class MainActivity extends FragmentActivity implements
             if (mClickedLocationMarker != null)
                 mClickedLocationMarker.remove();
 
-            if (mCLMarker != null && mCLMarkerCircle != null) {
+            if (mCLMarker != null) {
                 // Show the marker
                 mCLMarker.setVisible(true);
-                mCLMarkerCircle.setVisible(true);
-
                 animateMarker(location);
 
             } else {
@@ -616,13 +467,6 @@ public class MainActivity extends FragmentActivity implements
                         .anchor(0.5f, 0.75f)
                         .flat(true)
                         .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_user)));
-
-                mCLMarkerCircle = mMap.addCircle(new CircleOptions()
-                        .center(location)
-                        .radius(45f)
-                        .fillColor(Color.TRANSPARENT)
-                        .strokeWidth(1.5f)
-                        .strokeColor(0xFFE01368));
             }
 
             // Move the camera to the marker
@@ -640,7 +484,6 @@ public class MainActivity extends FragmentActivity implements
             if (mCLMarker != null) {
                 // Hide the current location marker
                 mCLMarker.setVisible(false);
-                mCLMarkerCircle.setVisible(false);
             }
 
             // We only want to remove the marker that is clicked on the map by the user, not
@@ -682,12 +525,9 @@ public class MainActivity extends FragmentActivity implements
                 long elapsed = SystemClock.uptimeMillis() - start;
                 float t = interpolator.getInterpolation((float) elapsed
                         / duration);
-                double lng = t * toPosition.longitude + (1 - t)
-                        * startLatLng.longitude;
-                double lat = t * toPosition.latitude + (1 - t)
-                        * startLatLng.latitude;
+                double lng = t * toPosition.longitude + (1 - t) * startLatLng.longitude;
+                double lat = t * toPosition.latitude + (1 - t) * startLatLng.latitude;
                 mCLMarker.setPosition(new LatLng(lat, lng));
-                mCLMarkerCircle.setCenter(new LatLng(lat, lng));
 
                 if (t < 1.0) {
                     // Post again 16ms later.
@@ -740,6 +580,26 @@ public class MainActivity extends FragmentActivity implements
         else {
             GooglePlayServicesUtil.getErrorDialog(resultCode, this, 0).show();
             return false;
+        }
+    }
+
+    private boolean gpsEnabled() {
+        int locationMode = 0;
+        String locationProviders;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT){
+            try {
+                locationMode = Settings.Secure.getInt(getContentResolver(), Settings.Secure.LOCATION_MODE);
+
+            } catch (Settings.SettingNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            return locationMode != Settings.Secure.LOCATION_MODE_OFF;
+
+        }else{
+            locationProviders = Settings.Secure.getString(getContentResolver(), Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
+            return !TextUtils.isEmpty(locationProviders);
         }
     }
 
