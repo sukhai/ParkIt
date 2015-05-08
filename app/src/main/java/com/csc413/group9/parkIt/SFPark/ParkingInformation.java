@@ -271,7 +271,7 @@ public class ParkingInformation {
     }
 
     /**
-     *  LoadSFPark
+     *  LoadSFPark and SFSU data base.
      */
     private class LoadSFParkDataTask extends AsyncTask<Void, ParkingLocation, Void> {
 
@@ -302,6 +302,9 @@ public class ParkingInformation {
         private Date currentTime;
 
         @Override
+        /**
+         *
+         */
         protected void onPreExecute() {
 
             try {
@@ -319,6 +322,9 @@ public class ParkingInformation {
         }
 
         @Override
+        /**
+         *
+         */
         protected Void doInBackground(Void... voids) {
 
             loadSFParkData();
@@ -330,6 +336,9 @@ public class ParkingInformation {
         }
 
         @Override
+        /**
+         *
+         */
         protected void onProgressUpdate(ParkingLocation... locations) {
 
             if (locations[0].isOnStreet()) {
@@ -340,6 +349,9 @@ public class ParkingInformation {
         }
 
         @Override
+        /**
+         *
+         */
         protected void onPostExecute(Void v) {
 
             sfParkDataReady = true;
@@ -374,6 +386,7 @@ public class ParkingInformation {
                     return;
 
                 JSONObject fileObject = new JSONObject(fileContent);
+                // using AVL as file pointer to begin parsing SFSU data
                 JSONArray jsonFile = fileObject.has("AVL") ? fileObject.getJSONArray("AVL") : null;
 
                 if (jsonFile == null)
@@ -560,10 +573,10 @@ public class ParkingInformation {
         }
 
         /**
-         * Get the URI content, which is the data from the SFPark.
-         * @param uri the SFSU Park URI
-         * @return a string that contains the content (SFPark data) from the SFPark website
-         * @throws Exception any error when doing HTTP request
+         * Get the file Path, which contains the data to SFSU parking.
+         * @param file the SFSU Park URI
+         * @return a string that contains the content (SFSU data) from the GPS.txt file
+         * @throws Exception any error when file can not be found or can not be opened.
          */
         private String getFileContent(String file) throws Exception {
 
