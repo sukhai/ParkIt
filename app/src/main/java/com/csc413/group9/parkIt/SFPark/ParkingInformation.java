@@ -1,15 +1,15 @@
 package com.csc413.group9.parkIt.SFPark;
 
-import android.app.Activity;
+import android.app.FragmentManager;
+import android.app.FragmentTransaction;
 import android.app.ProgressDialog;
-import android.content.Context;
 import android.content.res.AssetManager;
-import android.content.res.Resources;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.text.format.DateUtils;
 
+import com.csc413.group9.parkIt.MainActivity;
 import com.csc413.group9.parkIt.R;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -35,9 +35,7 @@ import org.apache.http.protocol.HttpContext;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -47,7 +45,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.zip.GZIPInputStream;
-import java.util.Scanner;
 
 /**
  * This class handles the parking information around the device's current location. This class will
@@ -63,7 +60,7 @@ public class ParkingInformation {
     private static final String SERVICE_URL = "http://api.sfpark.org/sfpark/rest/availabilityservice?radius=1000.0&response=json&version=1.0&pricing=yes";
 
     /**
-     *SFSU URL parking lots containing parking data this application needs.
+     * SFSU URL parking lots containing parking data this application needs.
      */
     //private static final String google_URL = "https://docs.google.com/document/d/15QUYceBcLUVLk398dTuCuiHv98Nq32YT48pcYT-iUMg/edit";
     private static final String GPS_Path = "/GPS.txt";
@@ -72,9 +69,9 @@ public class ParkingInformation {
      */
     private String fileContent;
     /**
-     * A reference to the application's context.
+     * A reference to the MainActivity.
      */
-    private Context mContext;
+    private MainActivity mMainActivity;
 
     /**
      * A reference to the Google map.
@@ -87,24 +84,10 @@ public class ParkingInformation {
     private String uriContent;
 
     /**
-     * A list of on-street parking locations.
+     * A reference to the parking markers, which contains a list of on-street parking markers
+     * and a list of off-street parking markers.
      */
-    private ArrayList<ParkingLocation> onStreetParkings;
-
-    /**
-     * A list of off-street parking locations (garage parking).
-     */
-    private ArrayList<ParkingLocation> offStreetParkings;
-
-    /**
-     * A list of on-street parking location icons, which are Polylines on the Google map.
-     */
-    private ArrayList<Polyline> onStreetParkingIcons;
-
-    /**
-     * A list of off-street parking location icons, which are Markers on the Google map.
-     */
-    private ArrayList<Marker> offStreetParkingIcons;
+    private ParkingMarkers parkingMarkers;
 
     /**
      *Flag for the SFSU Park data
@@ -128,39 +111,79 @@ public class ParkingInformation {
 
     /**
      * Constructor that setup the class members and references.
-     * @param context the context of the application
+     * @param mainActivity a reference to the MainActivity
      * @param map the Google map
      */
-    public ParkingInformation(Context context, GoogleMap map) {
+    public ParkingInformation(MainActivity mainActivity, GoogleMap map) {
 
-        mContext = context;
+        mMainActivity = mainActivity;
         mMap = map;
-
-        initializeArrays();
-
-        getSFParkData();
     }
 
     /**
-     *
+     * Save the ParkingMarkers fragment and retain its state, which can retain the list of
+     * both on-street and off-street parking markers when the device changes its state (orientation,
+     * on pause, etc).
      */
-    private void getSFParkData(){
+    public void saveParkingMarkersFragment() {
+
+        if (parkingMarkers == null) {
+            parkingMarkers = new ParkingMarkers();
+        }
+
+        FragmentManager fragmentManager = mMainActivity.getFragmentManager();
+        FragmentTransaction transaction = fragmentManager.beginTransaction();
+        transaction.add(parkingMarkers, ParkingMarkers.TAG_PARKING_MARKERS).commit();
+    }
+
+    /**
+     * Restore the ParkingMarkers fragment, which restore both the on-street and off-street parking
+     * markers from the previous state (i.e change of device's orientation).
+     */
+    public void restoreParkingMarkersFragment() {
+
+        FragmentManager fragmentManager = mMainActivity.getFragmentManager();
+        parkingMarkers = (ParkingMarkers) fragmentManager.findFragmentByTag(ParkingMarkers.TAG_PARKING_MARKERS);
+    }
+
+    /**
+     * Get the SFPark parking data and display it on the Google map.
+     */
+    public void getSFParkData(){
+
+        if (sfParkDataReady) {
+            return;
+        }
+
+        if (parkingMarkers == null) {
+            restoreParkingMarkersFragment();
+        }
+
         LoadSFParkDataTask ls = new LoadSFParkDataTask();
         ls.execute();
     }
     /**
-     *
-     * @return
+     * Determine if the SFSU data is ready.
+     * @return true if the SFPark data is ready, false otherwise
      */
     public boolean isSfSUParkDataReady(){
        return sfsuParkDataReady;
     }
+
     /**
      * Determine if the SFPark data is ready.
      * @return true if the SFPark data is ready, false otherwise
      */
     public boolean isSFParkDataReady() {
         return sfParkDataReady;
+    }
+
+    /**
+     * Set the flag for SFPark data. Set true if the SFPark data is ready, false otherwise.
+     * @param ready true if the SFPark data is ready, false otherwise
+     */
+    public void setSfParkDataReady(boolean ready) {
+        sfParkDataReady = ready;
     }
 
     /**
@@ -186,6 +209,7 @@ public class ParkingInformation {
             highlightedOffStreetParking = false;
         }
 
+        /*
         if(sfsuParkDataReady && drawOnStreet && !highlightedOnStreetParking){
             highlightOnStreetParking();
             highlightedOnStreetParking = true;
@@ -200,78 +224,80 @@ public class ParkingInformation {
             removeOffStreetHighlighted();
             highlightedOffStreetParking = true;
         }
+        */
     }
 
     /**
-     * Highlight on-street parking on the map by setting the icons to visible.
+     * Highlight on-street parking on the map by setting the markers to visible.
      */
     private void highlightOnStreetParking() {
 
-        for (int i = 0; i < onStreetParkingIcons.size(); i++) {
-            onStreetParkingIcons.get(i).setVisible(true);
+        // Restore the ParkingMarkers object if it hasn't
+        if (parkingMarkers == null || parkingMarkers.getOnStreetParkingMarkers() == null) {
+            restoreParkingMarkersFragment();
+        }
+
+        ArrayList<Polyline> polylines = parkingMarkers.getOnStreetParkingMarkers();
+
+        for (int i = 0; i < polylines.size(); i++) {
+            polylines.get(i).setVisible(true);
         }
     }
 
     /**
-     * Highlight the off-street parking (parking lot building) on the map by setting the icons
+     * Highlight the off-street parking (parking lot building) on the map by setting the markers
      * to visible.
      */
     private void highlightOffStreetParking() {
 
-        for (int i = 0; i < offStreetParkingIcons.size(); i++) {
-            offStreetParkingIcons.get(i).setVisible(true);
+        // Restore the ParkingMarkers object if it hasn't
+        if (parkingMarkers == null || parkingMarkers.getOffStreetParkingMarkers() == null) {
+            restoreParkingMarkersFragment();
+        }
+
+        ArrayList<Marker> markers = parkingMarkers.getOffStreetParkingMarkers();
+
+        for (int i = 0; i < markers.size(); i++) {
+            markers.get(i).setVisible(true);
         }
     }
 
     /**
-     * Remove the on-street parking highlight from the map by setting the icons to invisible.
+     * Remove the on-street parking highlight from the map by setting the markers to invisible.
      */
     private void removeOnStreetHighlighted() {
 
-        for (int i = 0; i < onStreetParkingIcons.size(); i++) {
-            onStreetParkingIcons.get(i).setVisible(false);
+        // Restore the ParkingMarkers object if it hasn't
+        if (parkingMarkers == null || parkingMarkers.getOnStreetParkingMarkers() == null) {
+            restoreParkingMarkersFragment();
+        }
+
+        ArrayList<Polyline> polylines = parkingMarkers.getOnStreetParkingMarkers();
+
+        for (int i = 0; i < polylines.size(); i++) {
+            polylines.get(i).setVisible(false);
         }
     }
 
     /**
-     * Remove the off-street parking highlight from the map by setting the icons to invisible.
+     * Remove the off-street parking highlight from the map by setting the markers to invisible.
      */
     private void removeOffStreetHighlighted() {
 
-        for (int i = 0; i < offStreetParkingIcons.size(); i++) {
-            offStreetParkingIcons.get(i).setVisible(false);
+        // Restore the ParkingMarkers object if it hasn't
+        if (parkingMarkers == null || parkingMarkers.getOffStreetParkingMarkers() == null) {
+            restoreParkingMarkersFragment();
+        }
+
+        ArrayList<Marker> markers = parkingMarkers.getOffStreetParkingMarkers();
+
+        for (int i = 0; i < markers.size(); i++) {
+            markers.get(i).setVisible(false);
         }
     }
 
     /**
-     * Initialize onStreetParkings, offStreetParkings, onStreetParkingIcons, and
-     * offStreetParkingIcons arrays.
-     */
-    private void initializeArrays() {
-
-        if (onStreetParkings == null)
-            onStreetParkings = new ArrayList<>();
-        else
-            onStreetParkings.clear();
-
-        if (offStreetParkings == null)
-            offStreetParkings = new ArrayList<>();
-        else
-            offStreetParkings.clear();
-
-        if (onStreetParkingIcons == null)
-            onStreetParkingIcons = new ArrayList<>();
-        else
-            onStreetParkingIcons.clear();
-
-        if (offStreetParkingIcons == null)
-            offStreetParkingIcons = new ArrayList<>();
-        else
-            offStreetParkingIcons.clear();
-    }
-
-    /**
-     *  LoadSFPark and SFSU data base.
+     * This class will handle the task of loading SFPark parking data into the map.
      */
     private class LoadSFParkDataTask extends AsyncTask<Void, ParkingLocation, Void> {
 
@@ -302,13 +328,10 @@ public class ParkingInformation {
         private Date currentTime;
 
         @Override
-        /**
-         *
-         */
         protected void onPreExecute() {
 
             try {
-                progressDialog = new ProgressDialog(mContext);
+                progressDialog = new ProgressDialog(mMainActivity);
                 progressDialog.setTitle("Please wait");
                 progressDialog.setMessage("Displaying parking data ...");
                 progressDialog.show();
@@ -322,9 +345,6 @@ public class ParkingInformation {
         }
 
         @Override
-        /**
-         *
-         */
         protected Void doInBackground(Void... voids) {
 
             loadSFParkData();
@@ -336,9 +356,6 @@ public class ParkingInformation {
         }
 
         @Override
-        /**
-         *
-         */
         protected void onProgressUpdate(ParkingLocation... locations) {
 
             if (locations[0].isOnStreet()) {
@@ -349,9 +366,6 @@ public class ParkingInformation {
         }
 
         @Override
-        /**
-         *
-         */
         protected void onPostExecute(Void v) {
 
             sfParkDataReady = true;
@@ -386,7 +400,6 @@ public class ParkingInformation {
                     return;
 
                 JSONObject fileObject = new JSONObject(fileContent);
-                // using AVL as file pointer to begin parsing SFSU data
                 JSONArray jsonFile = fileObject.has("AVL") ? fileObject.getJSONArray("AVL") : null;
 
                 if (jsonFile == null)
@@ -455,8 +468,6 @@ public class ParkingInformation {
          */
         private void initializeOnStreetParking(ParkingLocation parkingLocation) {
 
-            onStreetParkings.add(parkingLocation);
-
             // If it is street cleaning time now, then don't show the line
             ParkingLocation.RateSchedule[] rateSchedules = parkingLocation.getRateSchedule();
             for (int i = 0; i < rateSchedules.length; i++) {
@@ -483,7 +494,7 @@ public class ParkingInformation {
                         .width(7f);
 
                 Polyline polyline = mMap.addPolyline(lineOptions);
-                onStreetParkingIcons.add(polyline);
+                parkingMarkers.addOnStreetParkingMarker(polyline);
             }
         }
 
@@ -492,8 +503,6 @@ public class ParkingInformation {
          * @param parkingLocation the off-street parking location to be initialized
          */
         private void initializeOffStreetParking(ParkingLocation parkingLocation) {
-
-            offStreetParkings.add(parkingLocation);
 
             String name = parkingLocation.getName();
             String description = parkingLocation.getDescription();
@@ -506,8 +515,10 @@ public class ParkingInformation {
                     ParkingLocation.RateSchedule rate = rateSchedules[i];
 
                     if (!rate.getBeginTime().equals("")) {
-                        snippet.append(rate.getBeginTime() + "-" + rate.getEndTime() + " : $" +
-                                rate.getRate() + " " + rate.getRateQualifier() + "\n");
+                        snippet.append(rate.getBeginTime()).append("-")
+                                .append(rate.getEndTime()).append(" : $")
+                                .append(rate.getRate()).append(" ")
+                                .append(rate.getRateQualifier()).append("\n");
                     }
                 }
             }
@@ -520,7 +531,8 @@ public class ParkingInformation {
                     .title(name)
                     .snippet(description + "%" + snippet);
 
-            offStreetParkingIcons.add(mMap.addMarker(markerOptions));
+            Marker marker = mMap.addMarker(markerOptions);
+            parkingMarkers.addOffStreetParkingMarker(marker);
         }
 
         /**
@@ -537,7 +549,7 @@ public class ParkingInformation {
             String[] time = givenTime.split("\\s+");
 
             // Assume it is available to park if the given time is in invalid format
-            if (time == null || time.length != 2) {
+            if (time.length != 2) {
                 return true;
             }
 
@@ -546,7 +558,7 @@ public class ParkingInformation {
 
             String[] hm = hourMinute.split(":");
 
-            if (hm == null || hm.length != 2) {
+            if (hm.length != 2) {
                 return true;
             }
 
@@ -559,11 +571,7 @@ public class ParkingInformation {
             try {
                 Date givenDate = dateFormat.parse(hhmm);
 
-                if (currentTime.before(givenDate)) {
-                    return false;
-                } else {
-                    return true;
-                }
+                return currentTime.before(givenDate) ? false : true;
 
             } catch (Exception ex) {
                 ex.printStackTrace();
@@ -573,14 +581,14 @@ public class ParkingInformation {
         }
 
         /**
-         * Get the file Path, which contains the data to SFSU parking.
-         * @param file the SFSU Park URI
-         * @return a string that contains the content (SFSU data) from the GPS.txt file
-         * @throws Exception any error when file can not be found or can not be opened.
+         * Get the URI content, which is the data from the SFPark.
+         * @param file the SFSU Park file
+         * @return a string that contains the content (SFPark data) from the SFPark website
+         * @throws Exception any error when doing HTTP request
          */
         private String getFileContent(String file) throws Exception {
 
-            AssetManager assetManager = mContext.getResources().getAssets();
+            AssetManager assetManager = mMainActivity.getResources().getAssets();
             InputStream inputStream = null;
             String line = "";
 
