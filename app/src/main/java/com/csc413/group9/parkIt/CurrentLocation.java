@@ -1,7 +1,9 @@
 package com.csc413.group9.parkIt;
 
+import android.app.AlertDialog;
 import android.app.Service;
 import android.content.ContentValues;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -12,10 +14,12 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.provider.Settings;
 import android.widget.Toast;
 
 import com.csc413.group9.parkIt.Database.DatabaseHelper;
 import com.csc413.group9.parkIt.Database.DatabaseManager;
+import com.google.android.gms.maps.LocationSource;
 import com.google.android.gms.maps.model.LatLng;
 
 import java.io.IOException;
@@ -28,20 +32,20 @@ import java.util.Locale;
  *
  * Created by Su Khai Koh on 4/17/15.
  */
-public class CurrentLocation extends Service implements LocationListener {
+public class CurrentLocation extends Service implements LocationListener, LocationSource {
 
     /**
-     * The minimum time before getting a new location update. (5 seconds)
+     * The minimum time before getting a new location update. (1 seconds)
      */
-    private static final long MIN_TIME = 0;
+    private static final long MIN_TIME = 1000;
 
     /**
      * The minimum distance before getting a new location update. (2 meters)
      */
-    private static final long MIN_DISTANCE = 0;
+    private static final long MIN_DISTANCE = 2;
 
     /**
-     * The main activity.
+     * A reference to the main activity of the app.
      */
     private final MainActivity mMainActivity;
 
@@ -56,6 +60,16 @@ public class CurrentLocation extends Service implements LocationListener {
     private LocationManager mLocationManager;
 
     /**
+     * Flag for network provider is enable.
+     */
+    private boolean mNetworkEnabled;
+
+    /**
+     * Flag for GPS provider is enable.
+     */
+    private boolean mGPSEnabled;
+
+    /**
      * Flag for network and GPS status.
      */
     private boolean canGetLocation = false;
@@ -64,6 +78,12 @@ public class CurrentLocation extends Service implements LocationListener {
      * Flag for keeping track on device's location.
      */
     private boolean keepTrack = true;
+
+    /**
+     * A reference to an alert dialog, which is uses for displaying a dialog box about the GPS
+     * setting.
+     */
+    private AlertDialog alert;
 
     /**
      * Setup class members.
@@ -82,10 +102,11 @@ public class CurrentLocation extends Service implements LocationListener {
             location.setLatitude(DatabaseHelper.DEFAULT_LOCATION_LATITUDE);
             location.setLongitude(DatabaseHelper.DEFAULT_LOCATION_LONGITUDE);
 
-            setLastKnownLocation(location);
+  //          setLastKnownLocation(location);
         }
 
         startLocationUpdates();
+        getLocation();
     }
 
     /**
@@ -96,26 +117,17 @@ public class CurrentLocation extends Service implements LocationListener {
     public Location getLocation() {
 
         try {
-            // Get the location service
-            mLocationManager = (LocationManager) mMainActivity.getSystemService(LOCATION_SERVICE);
-
-            // Check whether the network is enabled on the device
-            boolean networkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-
-            // Check whether the GPS is enabled on the device
-            boolean GPSEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-
-            if ((GPSEnabled || networkEnabled) && keepTrack) {
+            if (isProviderAvailable()) {
 
                 canGetLocation = true;
 
                 // If the network is enabled, then get the network location
-                if (networkEnabled) {
+                if (mNetworkEnabled) {
                     useNetworkLocation();
                 }
 
                 // If GPS is also enabled, then get the GPS location
-                if (GPSEnabled) {
+                if (mGPSEnabled) {
                     useGPSLocation();
                 }
 
@@ -127,7 +139,8 @@ public class CurrentLocation extends Service implements LocationListener {
                             Toast.LENGTH_SHORT)
                             .show();
                 }
-
+            } else if (!mGPSEnabled) {
+                showNoGPSAlertMessage();
             }
 
         } catch (Exception ex) {
@@ -145,7 +158,7 @@ public class CurrentLocation extends Service implements LocationListener {
 
         keepTrack = true;
 
-   //     getLocation();
+        mLocationManager = (LocationManager) mMainActivity.getSystemService(LOCATION_SERVICE);
     }
 
     /**
@@ -167,7 +180,48 @@ public class CurrentLocation extends Service implements LocationListener {
      */
     public boolean canGetLocation() {
 
+        canGetLocation = isProviderAvailable();
+
         return canGetLocation;
+    }
+
+    /**
+     * Hide the No-GPS alert message box if it is currently showing on the screen.
+     */
+    public void hideNoGPSAlertMessage() {
+        if (alert != null) {
+            alert.dismiss();
+        }
+    }
+
+    /**
+     * Show the No-GPS alert message box.
+     */
+    public void showNoGPSAlertMessage() {
+
+        if (alert != null && alert.isShowing()) {
+            return;
+        }
+
+        AlertDialog.Builder alertDialog = new AlertDialog.Builder(mMainActivity);
+
+        alertDialog.setTitle("GPS Settings");
+        alertDialog.setMessage("Your GPS seems to be disabled, do you want to enable it?");
+        alertDialog.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog,int which) {
+                Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                mMainActivity.startActivity(intent);
+            }
+        });
+
+        alertDialog.setNegativeButton("No", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+
+        alert = alertDialog.create();
+        alert.show();
     }
 
     /**
@@ -229,6 +283,31 @@ public class CurrentLocation extends Service implements LocationListener {
         return location;
     }
 
+    /**
+     * Determine if any provider is available. The provider can either be GPS or network provider.
+     * This method will return true if either GPS or network provider is available and
+     * startLocationUpdates() has already called, false if stopLocationUpdates() is called or none
+     * of the provider is available.
+     * @return true if startLocationUpdates() has already called and either GPS or network provider
+     *         is available, false otherwise
+     */
+    private boolean isProviderAvailable() {
+
+        // Get the location service
+        mLocationManager = (LocationManager) mMainActivity.getSystemService(LOCATION_SERVICE);
+
+        // Check whether the network is enabled on the device
+        mNetworkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
+        // Check whether the GPS is enabled on the device
+        mGPSEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+
+        return ((mNetworkEnabled || mGPSEnabled) && keepTrack);
+    }
+
+    /**
+     * Use the network provider to provide current location.
+     */
     private void useNetworkLocation() {
 
         mLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER,
@@ -236,7 +315,7 @@ public class CurrentLocation extends Service implements LocationListener {
 
         if (mLocationManager != null) {
             mLocation = mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-
+/*
             // Draw the current location on the map and save the coordinate to database
             if (mLocation != null) {
 
@@ -244,10 +323,13 @@ public class CurrentLocation extends Service implements LocationListener {
                         new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
 
                 setLastKnownLocation(mLocation);
-            }
+            }*/
         }
     }
 
+    /**
+     * Use GPS provider to provide current location.
+     */
     private void useGPSLocation() {
 
         mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
@@ -257,13 +339,13 @@ public class CurrentLocation extends Service implements LocationListener {
             mLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
             // Draw the current location on the map and save the coordinate to database
-            if (mLocation != null) {
+ /*           if (mLocation != null) {
 
                 mMainActivity.placeCurrentLocationMarker(
                         new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
 
                 setLastKnownLocation(mLocation);
-            }
+            }*/
         }
     }
 
@@ -350,15 +432,30 @@ public class CurrentLocation extends Service implements LocationListener {
 
     @Override
     public void onProviderEnabled(String provider) {
+
         canGetLocation = true;
+        hideNoGPSAlertMessage();
     }
 
     @Override
     public void onProviderDisabled(String provider) {
+
+        canGetLocation = false;
+        showNoGPSAlertMessage();
     }
 
     @Override
     public IBinder onBind(Intent intent) {
         return null;
+    }
+
+    @Override
+    public void activate(OnLocationChangedListener onLocationChangedListener) {
+
+    }
+
+    @Override
+    public void deactivate() {
+
     }
 }
