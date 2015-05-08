@@ -9,13 +9,10 @@ import android.hardware.SensorManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
-import android.provider.Settings;
 import android.support.v4.app.FragmentActivity;
-import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -30,6 +27,7 @@ import android.widget.Toast;
 
 import com.csc413.group9.parkIt.Database.DatabaseManager;
 import com.csc413.group9.parkIt.Features.Search.Search;
+import com.csc413.group9.parkIt.Features.StreetHighlightSettings;
 import com.csc413.group9.parkIt.Features.WarningTimer.WarningTimer;
 import com.csc413.group9.parkIt.SFPark.ParkingInformation;
 import com.google.android.gms.common.ConnectionResult;
@@ -84,7 +82,18 @@ public class MainActivity extends FragmentActivity implements
     private boolean showOnStreetParking = true;
     private boolean showOffStreetParking = true;
 
+    private StreetHighlightSettings mStreetHighlightSettings;
     private Search mSearch;
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        // Load user's settings
+        mStreetHighlightSettings = new StreetHighlightSettings();
+        showOnStreetParking = mStreetHighlightSettings.isOnStreetHighlighted();
+        showOffStreetParking = mStreetHighlightSettings.isOffStreetHighlighted();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -102,9 +111,6 @@ public class MainActivity extends FragmentActivity implements
         buildSensorManager();
         buildGoogleMap();
 
-        mCurrentLocation = new CurrentLocation(this);
-        trackDeviceLocation(null);
-
         mParkingInfo = new ParkingInformation(this, mMap);
 
         if (savedInstanceState == null) {
@@ -117,6 +123,9 @@ public class MainActivity extends FragmentActivity implements
             mParkingInfo.getSFParkData();
         }
 
+        mCurrentLocation = new CurrentLocation(this);
+        trackDeviceLocation(null);
+
         mSearch = new Search(this);
         mWarningTimer = new WarningTimer(this);
         mWarningTimer.bindService();
@@ -125,6 +134,14 @@ public class MainActivity extends FragmentActivity implements
             startedFromNotification = false;
             mWarningTimer.goToParkedLocation();
         }
+    }
+
+    public boolean showOnStreetParking() {
+        return showOnStreetParking;
+    }
+
+    public boolean showOffStreetParking() {
+        return showOffStreetParking;
     }
 
     /**
@@ -440,23 +457,31 @@ public class MainActivity extends FragmentActivity implements
 
             // Add listeners to checkboxes
             CheckBox checkBoxOnStreet = (CheckBox) settingView.findViewById(R.id.checkbox_onstreet);
+            checkBoxOnStreet.setChecked(showOnStreetParking);
             checkBoxOnStreet.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     if (mParkingInfo.isSFParkDataReady()) {
                         showOnStreetParking = ((CheckBox) v).isChecked();
                         mParkingInfo.highlightStreet(showOnStreetParking, showOffStreetParking);
+
+                        // Store settings
+                        mStreetHighlightSettings.setHighlighted(showOnStreetParking, showOffStreetParking);
                     }
                 }
             });
 
             CheckBox checkBoxOffStreet = (CheckBox) settingView.findViewById(R.id.checkbox_offstreet);
+            checkBoxOffStreet.setChecked(showOffStreetParking);
             checkBoxOffStreet.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     if (mParkingInfo.isSFParkDataReady()) {
                         showOffStreetParking = ((CheckBox) v).isChecked();
                         mParkingInfo.highlightStreet(showOnStreetParking, showOffStreetParking);
+
+                        // Store settings
+                        mStreetHighlightSettings.setHighlighted(showOnStreetParking, showOffStreetParking);
                     }
                 }
             });
@@ -641,26 +666,6 @@ public class MainActivity extends FragmentActivity implements
         else {
             GooglePlayServicesUtil.getErrorDialog(resultCode, this, 0).show();
             return false;
-        }
-    }
-
-    private boolean gpsEnabled() {
-        int locationMode = 0;
-        String locationProviders;
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT){
-            try {
-                locationMode = Settings.Secure.getInt(getContentResolver(), Settings.Secure.LOCATION_MODE);
-
-            } catch (Settings.SettingNotFoundException e) {
-                e.printStackTrace();
-            }
-
-            return locationMode != Settings.Secure.LOCATION_MODE_OFF;
-
-        }else{
-            locationProviders = Settings.Secure.getString(getContentResolver(), Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
-            return !TextUtils.isEmpty(locationProviders);
         }
     }
 

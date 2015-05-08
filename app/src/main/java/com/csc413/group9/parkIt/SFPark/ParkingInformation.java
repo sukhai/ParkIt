@@ -491,7 +491,8 @@ public class ParkingInformation {
                         .add(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()))
                         .add(new LatLng(locations[1].getLatitude(), locations[1].getLongitude()))
                         .color(Color.GREEN)
-                        .width(7f);
+                        .width(7f)
+                        .visible(mMainActivity.showOnStreetParking());
 
                 Polyline polyline = mMap.addPolyline(lineOptions);
                 parkingMarkers.addOnStreetParkingMarker(polyline);
@@ -529,7 +530,8 @@ public class ParkingInformation {
                     .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_offstreet_parking))
                     .position(new LatLng(locations[0].getLatitude(), locations[0].getLongitude()))
                     .title(name)
-                    .snippet(description + "%" + snippet);
+                    .snippet(description + "%" + snippet)
+                    .visible(mMainActivity.showOffStreetParking());
 
             Marker marker = mMap.addMarker(markerOptions);
             parkingMarkers.addOffStreetParkingMarker(marker);

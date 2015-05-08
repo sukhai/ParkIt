@@ -61,6 +61,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      */
     public static final String COLUMN_LOCATION_LONGITUDE = "Longitude";
 
+    // Parked section (For WarningTimer)
+
     /**
      * The table name for parked location data.
      */
@@ -81,6 +83,23 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      */
     public static final String COLUMN_PARKED_LONGITUDE = "Longitude";
 
+    // Settings section
+
+    /**
+     * The table name for the user's settings data.
+     */
+    public static final String TABLE_NAME_SETTINGS = "Settings";
+
+    /**
+     * The column for the on-street highlight on the user's settings data.
+     */
+    public static final String COLUMN_SETTINGS_ONSTREET = "Onstreet";
+
+    /**
+     * The column for the off-street highlight on the user's settings data.
+     */
+    public static final String COLUMN_SETTINGS_OFFSTREET = "Offstreet";
+
     // Columns and table of the recent searched location table
     public static final int RECENT_LOCATION_MAX_ENTRIES = 5;
     public static final String TABLE_NAME_RECENT = "Recent";
@@ -89,9 +108,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COLUMN_RECENT_LONGITUDE = "Longitude";
 
     /**
+     * The boolean value for true.
+     */
+    public static final int BOOLEAN_TRUE = 0;
+
+    /**
+     * The boolean value for false.
+     */
+    public static final int BOOLEAN_FALSE = 1;
+
+    /**
      * Text type data.
      */
     private static final String TEXT_TYPE = " TEXT NOT NULL";
+
+    /**
+     * Boolean type data.
+     */
+    private static final String BOOL_TYPE = " INTEGER DEFAULT " + BOOLEAN_TRUE;
 
     /**
      * Real number type data.
@@ -142,6 +176,22 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String SQL_DELETE_TABLE_PARKED =
             DROP_TABLE + TABLE_NAME_PARKED;
 
+    /**
+     * The SQL statement that create a table for user's settings data.
+     */
+    private static final String SQL_CREATE_TABLE_SETTINGS =
+            "CREATE TABLE " + TABLE_NAME_SETTINGS + " (" +
+                    COLUMN_ID + " INTEGER PRIMARY KEY, " +
+                    COLUMN_SETTINGS_ONSTREET + BOOL_TYPE + COMMA +
+                    COLUMN_SETTINGS_OFFSTREET + BOOL_TYPE +
+                    " )";
+
+    /**
+     * The SQL statement that delete the table for user's settings table.
+     */
+    private static final String SQL_DELETE_TABLE_SETTINGS =
+            DROP_TABLE + TABLE_NAME_SETTINGS;
+
     // SQL statement of the recent searched location table
     private static final String SQL_CREATE_TABLE_RECENT =
             "CREATE TABLE " + TABLE_NAME_RECENT + " (" +
@@ -163,7 +213,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         " ORDER BY " + COLUMN_ID + " DESC" +
                         " LIMIT -1 OFFSET " + RECENT_LOCATION_MAX_ENTRIES + ")";
 
-
     /**
      * Setup database.
      * @param context the context of this application
@@ -178,6 +227,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(SQL_CREATE_TABLE_LOCATION);
         db.execSQL(SQL_CREATE_TABLE_PARKED);
         db.execSQL(SQL_CREATE_TABLE_RECENT);
+        db.execSQL(SQL_CREATE_TABLE_SETTINGS);
     }
 
     @Override
@@ -187,6 +237,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(SQL_DELETE_TABLE_LOCATION);
         db.execSQL(SQL_DELETE_TABLE_PARKED);
         db.execSQL(SQL_DELETE_TABLE_RECENT);
+        db.execSQL(SQL_DELETE_TABLE_SETTINGS);
 
         // Recreate tables
         onCreate(db);
