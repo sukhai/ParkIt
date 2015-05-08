@@ -62,6 +62,8 @@ public class MainActivity extends FragmentActivity implements
 
     private static final float CAMERA_ZOOM_LEVEL = 18f;
 
+    private static final double OFFSET_Y = 0.005f;
+
     public static boolean startedFromNotification = false;
 
     private GoogleMap mMap;
@@ -173,7 +175,7 @@ public class MainActivity extends FragmentActivity implements
         mMap.setOnMarkerClickListener(new MarkerClickedListener());
         mMap.setInfoWindowAdapter(new CustomInfoWindowAdapter());
         mMap.setOnMapLoadedCallback(this);
-        
+
         // Move camera to San Francisco
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(37.7833, -122.4167), 12));
     }
@@ -199,6 +201,17 @@ public class MainActivity extends FragmentActivity implements
         mSensorManager.registerListener(this,
                 mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
                 SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    private void hideAllInfoWindows() {
+
+        if (mClickedLocationMarker != null) {
+            mClickedLocationMarker.hideInfoWindow();
+        }
+
+        if (mParkingGarageMarker != null) {
+            mParkingGarageMarker.hideInfoWindow();
+        }
     }
 
     @Override
@@ -567,6 +580,9 @@ public class MainActivity extends FragmentActivity implements
         }
 
         if (mMap != null) {
+
+            mParkingMarkerInfoWindow = false;
+
             if (mCurrentLocationMarker != null) {
                 // Hide the current location marker
                 mCurrentLocationMarker.setVisible(false);
@@ -674,49 +690,82 @@ public class MainActivity extends FragmentActivity implements
         @Override
         public boolean onMarkerClick(Marker marker) {
 
-            if (marker.getSnippet() != null) {      // It's a garage parking marker
+            // The clicked marker is a garage parking marker if the snippet is not null,
+            // otherwise it is a user clicked marker (red marker)
 
-                if (mClickedLocationMarker != null) {
-                    mClickedLocationMarker.remove();
-                }
+            if (marker.getSnippet() != null) {      // Garage parking marker
+                showGarageParkingMarker(marker);
+            } else {                                // Clicked marker (red marker)
+                showClickedMarker(marker);
+            }
 
-            } else {        // It's a random clicked location marker on the map
+            // Always return true because we will handle showing and hiding infoWindow by ourself
+            return true;
+        }
 
-                // If it is a different marker than the previously stored marker, remove it
-                if (mClickedLocationMarker != null && !mClickedLocationMarker.equals(marker))
-                    mClickedLocationMarker.remove();
+        private void showGarageParkingMarker(Marker marker) {
+            hideAllInfoWindows();
+
+            if (mParkingGarageMarker == null || !mParkingGarageMarker.equals(marker)) {
+
+                mParkingGarageMarker = marker;
+                mParkingGarageMarker.showInfoWindow();
+                mParkingMarkerInfoWindow = true;
+                mClickedMarkerInfoWindow = false;
+
+                LatLng position = new LatLng(mParkingGarageMarker.getPosition().latitude  + OFFSET_Y,
+                        mParkingGarageMarker.getPosition().longitude);
+
+                mMap.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(position, mMap.getCameraPosition().zoom));
+
+            } else if (mParkingGarageMarker.equals(marker) && !mParkingMarkerInfoWindow) {
+
+                mClickedMarkerInfoWindow = false;
+                mParkingMarkerInfoWindow = true;
+                mParkingGarageMarker.showInfoWindow();
+
+                LatLng position = new LatLng(mParkingGarageMarker.getPosition().latitude  + OFFSET_Y,
+                        mParkingGarageMarker.getPosition().longitude);
+
+                mMap.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(position, mMap.getCameraPosition().zoom));
+
+            } else {
+                mParkingMarkerInfoWindow = false;
+                mClickedMarkerInfoWindow = false;
+            }
+        }
+
+        private void showClickedMarker(Marker marker) {
+            hideAllInfoWindows();
+
+            if (mClickedLocationMarker == null || !mClickedLocationMarker.equals(marker)) {
 
                 mClickedLocationMarker = marker;
-            }
-
-            if (mClickedMarkerInfoWindow) {
-                mClickedMarkerInfoWindow = false;
-                marker.hideInfoWindow();
-
-                // If this is the same parking garage marker that has been clicked, do nothing
-                if (mParkingGarageMarker != null && mParkingGarageMarker.equals(marker)) {
-                    return true;
-
-                    // If this is a different parking garage marker, hide the current InfoWindow and
-                    // show the new parking garage marker's InfoWindow
-                } else if (mParkingGarageMarker != null && marker.getSnippet() != null) {
-                    mParkingGarageMarker.hideInfoWindow();
-                    mParkingGarageMarker = marker;
-                    return false;
-
-                    // If this is the first time user click on any parking garage marker, set this
-                    // marker as the parking garage marker
-                } else if (mParkingGarageMarker == null && marker.getSnippet() != null) {
-                    mParkingGarageMarker = marker;
-                    return true;
-                }
-
-                return true;
-            } else {
-                // No InfoWindow is shown on any of the markers on the map, so show it
+                mClickedLocationMarker.showInfoWindow();
                 mClickedMarkerInfoWindow = true;
-                return false;
+                mParkingMarkerInfoWindow = false;
+
+                mMap.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(mClickedLocationMarker.getPosition(),
+                                mMap.getCameraPosition().zoom));
+
+            } else if (mClickedLocationMarker.equals(marker) && !mClickedMarkerInfoWindow) {
+
+                mParkingMarkerInfoWindow = false;
+                mClickedMarkerInfoWindow = true;
+                mClickedLocationMarker.showInfoWindow();
+
+                mMap.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(mClickedLocationMarker.getPosition(),
+                                mMap.getCameraPosition().zoom));
+
+            } else {
+                mParkingMarkerInfoWindow = false;
+                mClickedMarkerInfoWindow = false;
             }
+
         }
     }
 
