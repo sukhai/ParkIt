@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.text.format.DateUtils;
+import android.util.Log;
 
 import com.csc413.group9.parkIt.MainActivity;
 import com.csc413.group9.parkIt.R;
@@ -147,9 +148,9 @@ public class ParkingInformation {
     }
 
     /**
-     * Get the SFPark parking data and display it on the Google map.
+     * Get the SFPark and SFSU parking data and display it on the Google map.
      */
-    public void getSFParkData(){
+    public void getSFParkandSFSUData(){
 
         if (sfParkDataReady) {
             return;
@@ -166,7 +167,7 @@ public class ParkingInformation {
      * Determine if the SFSU data is ready.
      * @return true if the SFPark data is ready, false otherwise
      */
-    public boolean isSfSUParkDataReady(){
+    public boolean isSFSUParkDataReady(){
        return sfsuParkDataReady;
     }
 
@@ -395,13 +396,13 @@ public class ParkingInformation {
         private void readSFSUParkData() {
 
             try {
-                // Don't do anything if there is nothing available in the SFSU google URL GPS.txt
-                if (fileContent == null || fileContent.equals(""))
+                // Don't do anything if there is nothing available in the SFSU GPS.txt file
+                if (fileContent == null || fileContent.equals("")) {
                     return;
-
+                }
+                System.out.println(fileContent);
                 JSONObject fileObject = new JSONObject(fileContent);
                 JSONArray jsonFile = fileObject.has("AVL") ? fileObject.getJSONArray("AVL") : null;
-
                 if (jsonFile == null)
                     return;
 
@@ -585,30 +586,36 @@ public class ParkingInformation {
         /**
          * Get the URI content, which is the data from the SFPark.
          * @param file the SFSU Park file
-         * @return a string that contains the content (SFPark data) from the SFPark website
-         * @throws Exception any error when doing HTTP request
+         * @return a string that contains the content (SFSU data) from the GPS.txt file
+         * @throws Exception any error when file content cannot be extracted
          */
         private String getFileContent(String file) throws Exception {
 
             AssetManager assetManager = mMainActivity.getResources().getAssets();
             InputStream inputStream = null;
             String line = "";
-
+            StringBuilder sb = new StringBuilder();
+            BufferedReader reader;
+            String json = null;
             //mContext.getResources().openRawResource(R.id.);
             try {
                 inputStream = assetManager.open("GPS.txt");
                 System.out.printf("File Located");
 
+                if (inputStream != null) {
+                    reader = new BufferedReader(new InputStreamReader(inputStream));
+
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    json = sb.toString();
+                }
             } catch (IOException ex) {
                 ex.printStackTrace();
+            } finally {
+                assetManager.close();
             }
-
-            if (inputStream != null){
-                System.out.println("Here!!!!!!!!!!!!!");
-                BufferedReader reader = new BufferedReader( new InputStreamReader(inputStream));
-                line = reader.readLine();
-            }
-            return line;
+            return sb.toString();
         }
 
         /**
