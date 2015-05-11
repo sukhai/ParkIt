@@ -150,7 +150,7 @@ public class ParkingInformation {
     /**
      * Get the SFPark and SFSU parking data and display it on the Google map.
      */
-    public void getSFParkandSFSUData(){
+    public void getSFParkData(){
 
         if (sfParkDataReady) {
             return;
