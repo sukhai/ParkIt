@@ -2,11 +2,8 @@ package com.csc413.group9.parkIt;
 
 import android.app.AlertDialog;
 import android.app.Service;
-import android.content.ContentValues;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -17,8 +14,6 @@ import android.os.IBinder;
 import android.provider.Settings;
 import android.widget.Toast;
 
-import com.csc413.group9.parkIt.Database.DatabaseHelper;
-import com.csc413.group9.parkIt.Database.DatabaseManager;
 import com.google.android.gms.maps.LocationSource;
 import com.google.android.gms.maps.model.LatLng;
 
@@ -86,27 +81,50 @@ public class CurrentLocation extends Service implements LocationListener, Locati
     private AlertDialog alert;
 
     /**
-     * Setup class members.
+     * Setup class members and start the location updates.
      * @param mainActivity the main activity of this application
      */
     public CurrentLocation(MainActivity mainActivity) {
 
         mMainActivity = mainActivity;
 
-        DatabaseManager mDatabaseManager = DatabaseManager.getInstance();
-
-        // If the location table is empty, then provide the default location as the first entry
-        if (mDatabaseManager.isEmpty(DatabaseHelper.TABLE_NAME_LOCATION)) {
-
-            Location location = new Location(DatabaseHelper.DEFAULT_LOCATION_ADDRESS);
-            location.setLatitude(DatabaseHelper.DEFAULT_LOCATION_LATITUDE);
-            location.setLongitude(DatabaseHelper.DEFAULT_LOCATION_LONGITUDE);
-
-  //          setLastKnownLocation(location);
-        }
-
         startLocationUpdates();
+
         getLocation();
+    }
+
+    /**
+     * Start the location updates.
+     */
+    public void startLocationUpdates() {
+
+        keepTrack = true;
+
+        mLocationManager = (LocationManager) mMainActivity.getSystemService(LOCATION_SERVICE);
+    }
+
+    /**
+     * Stop the location updates.
+     */
+    public void stopLocationUpdates() {
+
+        keepTrack = false;
+
+        if (mLocationManager != null) {
+            mLocationManager.removeUpdates(this);
+        }
+    }
+
+    /**
+     * Check whether the network or GPS is enabled and can get the current location of the device.
+     * @return true if the GPS is enabled and it is ready to get the current location of the
+     *         device, otherwise false.
+     */
+    public boolean canGetLocation() {
+
+        canGetLocation = isProviderAvailable();
+
+        return canGetLocation;
     }
 
     /**
@@ -151,50 +169,6 @@ public class CurrentLocation extends Service implements LocationListener, Locati
     }
 
     /**
-     * Start the location updates. The location updates will only start and work if the network or
-     * GPS is enabled.
-     */
-    public void startLocationUpdates() {
-
-        keepTrack = true;
-
-        mLocationManager = (LocationManager) mMainActivity.getSystemService(LOCATION_SERVICE);
-    }
-
-    /**
-     * Stop the location updates.
-     */
-    public void stopLocationUpdates() {
-
-        keepTrack = false;
-
-        if (mLocationManager != null) {
-            mLocationManager.removeUpdates(this);
-        }
-    }
-
-    /**
-     * Check whether the network or GPS is enabled and can get the current location of the device.
-     * @return true if the GPS is enabled and it is ready to get the current location of the
-     *         device, otherwise false.
-     */
-    public boolean canGetLocation() {
-
-        canGetLocation = isProviderAvailable();
-
-        return canGetLocation;
-    }
-
-    /**
-     * Hide the No-GPS alert message box if it is currently showing on the screen.
-     */
-    public void hideNoGPSAlertMessage() {
-        if (alert != null) {
-            alert.dismiss();
-        }
-    }
-
-    /**
      * Show the No-GPS alert message box.
      */
     public void showNoGPSAlertMessage() {
@@ -226,62 +200,12 @@ public class CurrentLocation extends Service implements LocationListener, Locati
     }
 
     /**
-     * Set the last known location of the device to the database Location table. The Location
-     * table is only limited to one record. Therefore the given location will always replace
-     * the old location in the database.
-     * @param loc the new location to be inserted into the database Location table
+     * Hide the No-GPS alert message box if it is currently showing on the screen.
      */
-    public synchronized void setLastKnownLocation(Location loc) {
-
-        SQLiteDatabase db = DatabaseManager.getInstance().open();
-
-        // Delete all entries
-        db.delete(DatabaseHelper.TABLE_NAME_LOCATION, null, null);
-
-        ContentValues location = new ContentValues();
-        location.put(DatabaseHelper.COLUMN_LOCATION_ADDRESS, getAddress(loc));
-        location.put(DatabaseHelper.COLUMN_LOCATION_LATITUDE, loc.getLatitude());
-        location.put(DatabaseHelper.COLUMN_LOCATION_LONGITUDE, loc.getLongitude());
-
-        // Insert the new location into the database
-        db.insert(DatabaseHelper.TABLE_NAME_LOCATION, null, location);
-
-        DatabaseManager.getInstance().close();
-    }
-
-    /**
-     * Get the last known location from the database Location table.
-     * @return the last known location saved on the database Location table if the table has any
-     *         records in it, otherwise return the default location
-     */
-    public String[] getLastKnownLocation() {
-
-        SQLiteDatabase db = DatabaseManager.getInstance().open();
-
-        // Set default location
-        String[] location = {DatabaseHelper.DEFAULT_LOCATION_ADDRESS,
-                Double.toString(DatabaseHelper.DEFAULT_LOCATION_LATITUDE),
-                Double.toString(DatabaseHelper.DEFAULT_LOCATION_LONGITUDE)};
-
-        Cursor cursor = db.query(DatabaseHelper.TABLE_NAME_LOCATION, new String[] { "*" },
-                null, null, null, null, null, null);
-
-        if (cursor != null) {
-            if (cursor.moveToFirst()) {
-
-                location = new String[3];
-
-                location[0] = cursor.getString(1);      // Address
-                location[1] = cursor.getString(2);      // Latitude
-                location[2] = cursor.getString(3);      // Longitude
-            }
-
-            cursor.close();
+    public void hideNoGPSAlertMessage() {
+        if (alert != null) {
+            alert.dismiss();
         }
-
-        DatabaseManager.getInstance().close();
-
-        return location;
     }
 
     /**
@@ -316,15 +240,13 @@ public class CurrentLocation extends Service implements LocationListener, Locati
 
         if (mLocationManager != null) {
             mLocation = mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-/*
+
             // Draw the current location on the map and save the coordinate to database
             if (mLocation != null) {
 
                 mMainActivity.placeCurrentLocationMarker(
                         new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
-
-                setLastKnownLocation(mLocation);
-            }*/
+            }
         }
     }
 
@@ -340,13 +262,11 @@ public class CurrentLocation extends Service implements LocationListener, Locati
             mLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
             // Draw the current location on the map and save the coordinate to database
- /*           if (mLocation != null) {
+            if (mLocation != null) {
 
                 mMainActivity.placeCurrentLocationMarker(
                         new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
-
-                setLastKnownLocation(mLocation);
-            }*/
+            }
         }
     }
 
@@ -367,8 +287,8 @@ public class CurrentLocation extends Service implements LocationListener, Locati
 
         try {
             addresses = geocoder.getFromLocation(loc.getLatitude(), loc.getLongitude(), 1);
-        } catch (IOException e) {
-            // Unable to get the address, so we do nothing
+        } catch (IOException ex) {
+            ex.printStackTrace();
         }
 
         if (addresses != null && addresses.size() > 0) {
@@ -420,9 +340,6 @@ public class CurrentLocation extends Service implements LocationListener, Locati
                 mMainActivity.placeCurrentLocationMarker(
                         new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
             }
-
-            // Save to database
-            setLastKnownLocation(mLocation);
         }
     }
 

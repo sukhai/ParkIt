@@ -22,44 +22,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final int DATABASE_VERSION = 1;
 
     /**
-     * Default location address.
-     */
-    public static final String DEFAULT_LOCATION_ADDRESS = "Union Square San Francisco, CA, 94108, United States";
-
-    /**
-     * Default location latitude.
-     */
-    public static final double DEFAULT_LOCATION_LATITUDE = 37.7881;
-
-    /**
-     * Default location longitude.
-     */
-    public static final double DEFAULT_LOCATION_LONGITUDE = -122.4075;
-
-    /**
-     * The table name for device's current location data
-     */
-    public static final String TABLE_NAME_LOCATION = "Location";
-
-    /**
      * The column ID for current location data (Primary key).
      */
     public static final String COLUMN_ID = "ID";
-
-    /**
-     * The column for current location address data.
-     */
-    public static final String COLUMN_LOCATION_ADDRESS = "Address";
-
-    /**
-     * The column for current location latitude data.
-     */
-    public static final String COLUMN_LOCATION_LATITUDE = "Latitude";
-
-    /**
-     * The column for current location longitude data.
-     */
-    public static final String COLUMN_LOCATION_LONGITUDE = "Longitude";
 
     // Parked section (For WarningTimer)
 
@@ -100,13 +65,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      */
     public static final String COLUMN_SETTINGS_OFFSTREET = "Offstreet";
 
-    // Columns and table of the recent searched location table
-    public static final int RECENT_LOCATION_MAX_ENTRIES = 5;
-    public static final String TABLE_NAME_RECENT = "Recent";
-    public static final String COLUMN_RECENT_ADDRESS = "Address";
-    public static final String COLUMN_RECENT_LATITUDE = "Latitude";
-    public static final String COLUMN_RECENT_LONGITUDE = "Longitude";
-
     /**
      * The boolean value for true.
      */
@@ -143,23 +101,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DROP_TABLE = "DROP TABLE IF EXISTS ";
 
     /**
-     * The SQL statement that create a table for device's current location data.
-     */
-    private static final String SQL_CREATE_TABLE_LOCATION =
-            "CREATE TABLE " + TABLE_NAME_LOCATION + " (" +
-                    COLUMN_ID + " INTEGER PRIMARY KEY, " +
-                    COLUMN_LOCATION_ADDRESS + TEXT_TYPE + COMMA +
-                    COLUMN_LOCATION_LATITUDE + REAL_TYPE + COMMA +
-                    COLUMN_LOCATION_LONGITUDE + REAL_TYPE +
-                    " )";
-
-    /**
-     * The SQL statement that delete the table for device's current location table.
-     */
-    private static final String SQL_DELETE_TABLE_LOCATION =
-            DROP_TABLE + TABLE_NAME_LOCATION;
-
-    /**
      * The SQL statement that create a table for user's parked location data.
      */
     private static final String SQL_CREATE_TABLE_PARKED =
@@ -192,27 +133,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String SQL_DELETE_TABLE_SETTINGS =
             DROP_TABLE + TABLE_NAME_SETTINGS;
 
-    // SQL statement of the recent searched location table
-    private static final String SQL_CREATE_TABLE_RECENT =
-            "CREATE TABLE " + TABLE_NAME_RECENT + " (" +
-                    COLUMN_ID + " INTEGER PRIMARY KEY, " +
-                    COLUMN_RECENT_ADDRESS + TEXT_TYPE + COMMA +
-                    COLUMN_RECENT_LATITUDE + TEXT_TYPE + COMMA +
-                    COLUMN_RECENT_LONGITUDE + TEXT_TYPE +
-                    " )";
-
-    // SQL statement of the recent searched location table deletion
-    private static final String SQL_DELETE_TABLE_RECENT =
-            DROP_TABLE + TABLE_NAME_RECENT;
-
-    public static final String SQL_DELETE_RECENT_ENTRIES =
-            "DELETE FROM " + TABLE_NAME_RECENT +
-                    " WHERE " + COLUMN_ID + " IN" +
-                        " (SELECT " + COLUMN_ID +
-                        " FROM " + TABLE_NAME_RECENT +
-                        " ORDER BY " + COLUMN_ID + " DESC" +
-                        " LIMIT -1 OFFSET " + RECENT_LOCATION_MAX_ENTRIES + ")";
-
     /**
      * Setup database.
      * @param context the context of this application
@@ -224,9 +144,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
 
-        db.execSQL(SQL_CREATE_TABLE_LOCATION);
         db.execSQL(SQL_CREATE_TABLE_PARKED);
-        db.execSQL(SQL_CREATE_TABLE_RECENT);
         db.execSQL(SQL_CREATE_TABLE_SETTINGS);
     }
 
@@ -234,9 +152,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 
         // Clear all data
-        db.execSQL(SQL_DELETE_TABLE_LOCATION);
         db.execSQL(SQL_DELETE_TABLE_PARKED);
-        db.execSQL(SQL_DELETE_TABLE_RECENT);
         db.execSQL(SQL_DELETE_TABLE_SETTINGS);
 
         // Recreate tables

@@ -1,7 +1,6 @@
 package com.csc413.group9.parkIt.Database;
 
 import android.content.Context;
-import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 /**
@@ -108,31 +107,5 @@ public class DatabaseManager {
             // Closing database
             mDatabase.close();
         }
-    }
-
-    /**
-     * Check whether the given table in the database is empty (no rows) or not.
-     * @param tableName the table to be checked in the database
-     * @return true if the table is empty (no rows), otherwise false.
-     */
-    public boolean isEmpty(String tableName) {
-
-        boolean empty = true;
-
-        SQLiteDatabase db = DatabaseManager.getInstance().open();
-
-        // Select every rows in the table
-        String count = "SELECT count(*) FROM " + tableName;
-
-        // Move the cursor to the first row in the table
-        Cursor cursor = db.rawQuery(count, null);
-        cursor.moveToFirst();
-
-        if (cursor.getInt(0) > 0)
-            empty = false;
-
-        DatabaseManager.getInstance().close();
-
-        return empty;
     }
 }
