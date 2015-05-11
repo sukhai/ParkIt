@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:layout_gravity="center"
-    android:background="@android:color/white">
+    android:background="@drawable/layout_infowindow_bg">
 
     <TextView
         android:id="@+id/textview_warning_timer_title"

@@ -9,23 +9,37 @@
         android:id="@+id/parking_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_margin="15dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:layout_marginBottom="5dp"
         android:textStyle="bold"
         android:textSize="18dp"/>
+
+    <!-- Horizontal bar -->
+    <View
+        android:id="@+id/search_location2_bar"
+        android:layout_width="fill_parent"
+        android:layout_height="1dp"
+        android:layout_marginBottom="20dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:background="#7800B4" />
 
     <TextView
         android:id="@+id/parking_address"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_margin="15dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:layout_marginBottom="10dp"
         android:textSize="16dp"/>
 
     <TextView
         android:id="@+id/parking_snippet"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginLeft="15dp"
-        android:layout_marginRight="15dp"
+        android:layout_margin="10dp"
         android:textStyle="italic"/>
 
 </LinearLayout>
