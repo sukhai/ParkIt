@@ -1,26 +1,19 @@
 package com.csc413.group9.parkIt.Features.Search;
 
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.location.Address;
 import android.location.Geocoder;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
-import android.widget.Button;
 
-import com.csc413.group9.parkIt.Database.DatabaseHelper;
-import com.csc413.group9.parkIt.Database.DatabaseManager;
 import com.csc413.group9.parkIt.MainActivity;
 import com.csc413.group9.parkIt.R;
 import com.google.android.gms.maps.model.LatLng;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -62,68 +55,6 @@ public class Search {
             places = new String[]{""};
             set = new HashSet<String>();
         }
-    }
-
-    public void addAddressToSearchButtons(ArrayList<Button> buttons) {
-
-        if (buttons == null) {
-            return;
-        }
-
-        SQLiteDatabase db = DatabaseManager.getInstance().open();
-
-        // Get the list of recent search data in the descending order, so the newest address
-        // is the first data in the list
-        Cursor cursor = db.query(DatabaseHelper.TABLE_NAME_RECENT, new String[] { "*" },
-                null, null, null, null, null, DatabaseHelper.COLUMN_ID + " DESC");
-
-        int i = 0;
-
-        if (cursor != null) {
-            while (cursor.moveToFirst()) {
-                String storedAddress = cursor.getString(1);
-
-                buttons.get(i).setText(storedAddress);
-            }
-
-            cursor.close();
-        }
-
-        DatabaseManager.getInstance().close();
-    }
-
-    public LatLng getLatLng(String address) {
-
-        if (address == null || address.equals("")) {
-            return null;
-        }
-
-        LatLng value = null;
-
-        SQLiteDatabase db = DatabaseManager.getInstance().open();
-
-        // Get the list of recent search data in the descending order, so the newest address
-        // is the first data in the list
-        Cursor cursor = db.query(DatabaseHelper.TABLE_NAME_RECENT, new String[] { "*" },
-                null, null, null, null, null, DatabaseHelper.COLUMN_ID + " DESC");
-
-        if (cursor != null) {
-            while (cursor.moveToFirst()) {
-                String storedAddress = cursor.getString(1);
-
-                if (storedAddress.equalsIgnoreCase(address)) {
-                    double latitude = cursor.getDouble(2);
-                    double longitude = cursor.getDouble(3);
-                    value = new LatLng(latitude, longitude);
-                }
-            }
-
-            cursor.close();
-        }
-
-        DatabaseManager.getInstance().close();
-
-        return value;
     }
 
     public void geoLocate(View v) throws IOException {
@@ -189,28 +120,8 @@ public class Search {
     //class that go to the searched location
     private void goToLocation(String address, double latitude, double longitude) {
 
-    //    setLastSearchedLocation(address, latitude, longitude);
-
         LatLng mCurrentLatLng = new LatLng(latitude, longitude);
 
         mMainActivity.placeMarker(mCurrentLatLng);
-    }
-
-    private void setLastSearchedLocation(String address, double latitude, double longitude) {
-
-        SQLiteDatabase db = DatabaseManager.getInstance().open();
-
-        // Delete old entries
-        db.execSQL(DatabaseHelper.SQL_DELETE_RECENT_ENTRIES);
-
-        ContentValues location = new ContentValues();
-        location.put(DatabaseHelper.COLUMN_RECENT_ADDRESS, address);
-        location.put(DatabaseHelper.COLUMN_RECENT_LATITUDE, latitude);
-        location.put(DatabaseHelper.COLUMN_RECENT_LONGITUDE, longitude);
-
-        // Insert the new location into the database
-        db.insert(DatabaseHelper.TABLE_NAME_RECENT, null, location);
-
-        DatabaseManager.getInstance().close();
     }
 }
