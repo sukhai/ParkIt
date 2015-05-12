@@ -219,7 +219,7 @@ public class ParkingInformation {
      * @return true if the SFPark data is ready, false otherwise
      */
     public boolean isSFSUParkDataReady(){
-       return sfsuParkDataReady;
+        return sfsuParkDataReady;
     }
 
     /**
