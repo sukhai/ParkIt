@@ -11,6 +11,7 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Message;
 import android.os.SystemClock;
 import android.support.v4.app.FragmentActivity;
 import android.view.Gravity;
@@ -87,6 +88,7 @@ public class MainActivity extends FragmentActivity implements
     private StreetHighlightSettings mStreetHighlightSettings;
     private Search mSearch;
 
+
     @Override
     protected void onStart() {
         super.onStart();
@@ -99,6 +101,7 @@ public class MainActivity extends FragmentActivity implements
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
 
         if (!servicesAvailable()) {
