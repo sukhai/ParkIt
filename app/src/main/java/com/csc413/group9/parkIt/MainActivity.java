@@ -11,7 +11,6 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Message;
 import android.os.SystemClock;
 import android.support.v4.app.FragmentActivity;
 import android.view.Gravity;
@@ -25,6 +24,7 @@ import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
+import android.widget.ViewSwitcher;
 
 import com.csc413.group9.parkIt.Database.DatabaseManager;
 import com.csc413.group9.parkIt.Features.Search.Search;
@@ -67,6 +67,11 @@ public class MainActivity extends FragmentActivity implements
 
     public static boolean startedFromNotification = false;
 
+    /**
+     * A reference to the ViewSwitcher, which will switch between splash screen and main activity views
+     */
+    private ViewSwitcher mViewSwitcher;
+
     private GoogleMap mMap;
     private Marker mClickedLocationMarker;
     private Marker mParkingGarageMarker;
@@ -108,7 +113,13 @@ public class MainActivity extends FragmentActivity implements
             finish();
         }
 
-        setContentView(R.layout.activity_main);
+        //Initialize the ViewSwitcher object
+        mViewSwitcher = new ViewSwitcher(MainActivity.this);
+        mViewSwitcher.addView(ViewSwitcher.inflate(MainActivity.this, R.layout.splash, null));
+        mViewSwitcher.addView(ViewSwitcher.inflate(MainActivity.this, R.layout.activity_main, null));
+
+        setContentView(mViewSwitcher);
+  //      setContentView(R.layout.activity_main);
 
         DatabaseManager.initializeInstance(this);
 
@@ -147,6 +158,18 @@ public class MainActivity extends FragmentActivity implements
 
     public boolean showOffStreetParking() {
         return showOffStreetParking;
+    }
+
+    public void showMainLayout() {
+        if (mViewSwitcher != null) {
+            mViewSwitcher.showNext();
+
+            trackDeviceLocation(null);
+        }
+    }
+
+    public boolean isSFParkDataReady() {
+        return mParkingInfo == null ? false : mParkingInfo.isSFParkDataReady();
     }
 
     /**
@@ -532,7 +555,9 @@ public class MainActivity extends FragmentActivity implements
             }
 
         } else {
-            mCurrentLocation.showNoGPSAlertMessage();
+            if (isSFParkDataReady()) {
+                mCurrentLocation.showNoGPSAlertMessage();
+            }
         }
     }
 

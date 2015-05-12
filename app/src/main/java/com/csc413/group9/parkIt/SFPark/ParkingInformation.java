@@ -2,13 +2,10 @@ package com.csc413.group9.parkIt.SFPark;
 
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
-import android.app.ProgressDialog;
-import android.content.res.AssetManager;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.text.format.DateUtils;
-import android.util.Log;
 
 import com.csc413.group9.parkIt.MainActivity;
 import com.csc413.group9.parkIt.R;
@@ -36,10 +33,8 @@ import org.apache.http.protocol.HttpContext;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -60,15 +55,17 @@ public class ParkingInformation {
      */
     private static final String SERVICE_URL = "http://api.sfpark.org/sfpark/rest/availabilityservice?radius=1000.0&response=json&version=1.0&pricing=yes";
 
-    /**
+    /*
      * SFSU URL parking lots containing parking data this application needs.
      */
     //private static final String google_URL = "https://docs.google.com/document/d/15QUYceBcLUVLk398dTuCuiHv98Nq32YT48pcYT-iUMg/edit";
     //private static final String GPS_Path = "/GPS.txt";
-    /**
+
+    /*
      * content of SFSU Parking URL
      */
-    private String fileContent;
+  //  private String fileContent;
+
     /**
      * A reference to the MainActivity.
      */
@@ -90,7 +87,7 @@ public class ParkingInformation {
      */
     private ParkingMarkers parkingMarkers;
 
-    /**
+    /*
      *Flag for the SFSU Park data
      */
     //private boolean sfsuParkDataReady = false;
@@ -314,11 +311,6 @@ public class ParkingInformation {
         private static final int SOCKET_BUFFER_SIZE = 8192;
 
         /**
-         * The progress dialog that will be shown when fetching the data from SFPark.
-         */
-        private ProgressDialog progressDialog;
-
-        /**
          * A date format with the format of HH:mm.
          */
         private DateFormat dateFormat = new SimpleDateFormat("HH:mm");
@@ -332,12 +324,6 @@ public class ParkingInformation {
         protected void onPreExecute() {
 
             try {
-                progressDialog = new ProgressDialog(mMainActivity);
-                progressDialog.setTitle("Please wait");
-                progressDialog.setMessage("Displaying parking data ...");
-                progressDialog.show();
-                progressDialog.setCancelable(false);
-
                 currentTime = dateFormat.parse(dateFormat.format(new Date(System.currentTimeMillis())));
 
             } catch (Exception e) {
@@ -370,9 +356,9 @@ public class ParkingInformation {
         protected void onPostExecute(Void v) {
 
             sfParkDataReady = true;
-        //    sfsuParkDataReady = true;
 
-            progressDialog.dismiss();
+            mMainActivity.showMainLayout();
+        //    sfsuParkDataReady = true;
         }
 
         /**
@@ -583,7 +569,7 @@ public class ParkingInformation {
             return true;
         }
 
-        /**
+        /*
          * Get the URI content, which is the data from the SFPark.
          * @param file the SFSU Park file
          * @return a string that contains the content (SFSU data) from the GPS.txt file

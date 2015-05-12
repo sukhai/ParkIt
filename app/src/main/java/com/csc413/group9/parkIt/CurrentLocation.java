@@ -158,7 +158,9 @@ public class CurrentLocation extends Service implements LocationListener, Locati
                             .show();
                 }
             } else if (!mGPSEnabled) {
-                showNoGPSAlertMessage();
+                if (mMainActivity.isSFParkDataReady()) {
+                    showNoGPSAlertMessage();
+                }
             }
 
         } catch (Exception ex) {
@@ -179,10 +181,11 @@ public class CurrentLocation extends Service implements LocationListener, Locati
 
         AlertDialog.Builder alertDialog = new AlertDialog.Builder(mMainActivity);
 
+        alertDialog.setCancelable(false);
         alertDialog.setTitle("GPS Settings");
         alertDialog.setMessage("Your GPS seems to be disabled, do you want to enable it?");
         alertDialog.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog,int which) {
+            public void onClick(DialogInterface dialog, int which) {
                 Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                 mMainActivity.startActivity(intent);
             }
@@ -242,7 +245,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
             mLocation = mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
 
             // Draw the current location on the map and save the coordinate to database
-            if (mLocation != null) {
+            if (mLocation != null && mMainActivity.isMapLoaded()) {
 
                 mMainActivity.placeCurrentLocationMarker(
                         new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
@@ -262,7 +265,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
             mLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
             // Draw the current location on the map and save the coordinate to database
-            if (mLocation != null) {
+            if (mLocation != null && mMainActivity.isMapLoaded()) {
 
                 mMainActivity.placeCurrentLocationMarker(
                         new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
