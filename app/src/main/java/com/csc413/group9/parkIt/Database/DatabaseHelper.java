@@ -26,7 +26,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      */
     public static final String COLUMN_ID = "ID";
 
-    // Parked section (For WarningTimer)
+
+    /* Parked section (For WarningTimer) */
 
     /**
      * The table name for parked location data.
@@ -48,7 +49,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      */
     public static final String COLUMN_PARKED_LONGITUDE = "Longitude";
 
-    // Settings section
+
+    /* Settings section */
 
     /**
      * The table name for the user's settings data.
@@ -64,6 +66,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      * The column for the off-street highlight on the user's settings data.
      */
     public static final String COLUMN_SETTINGS_OFFSTREET = "Offstreet";
+
+
+    /* Data type */
 
     /**
      * The boolean value for true.
