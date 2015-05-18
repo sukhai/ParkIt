@@ -61,18 +61,18 @@ public class CurrentLocation extends Service implements LocationListener, Locati
     /**
      * Flag for network and GPS status.
      */
-    private boolean canGetLocation = false;
+    private boolean mCanGetLocation = false;
 
     /**
      * Flag for keeping track on device's location.
      */
-    private boolean keepTrack = true;
+    private boolean mKeepTrack = true;
 
     /**
      * A reference to an alert dialog, which is uses for displaying a dialog box about the GPS
      * setting.
      */
-    private AlertDialog alert;
+    private AlertDialog mAlert;
 
     /**
      * Setup class members and start the location updates.
@@ -92,7 +92,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
      */
     public void startLocationUpdates() {
 
-        keepTrack = true;
+        mKeepTrack = true;
 
         mLocationManager = (LocationManager) mMainActivity.getSystemService(LOCATION_SERVICE);
     }
@@ -102,7 +102,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
      */
     public void stopLocationUpdates() {
 
-        keepTrack = false;
+        mKeepTrack = false;
 
         if (mLocationManager != null) {
             mLocationManager.removeUpdates(this);
@@ -116,9 +116,9 @@ public class CurrentLocation extends Service implements LocationListener, Locati
      */
     public boolean canGetLocation() {
 
-        canGetLocation = isProviderAvailable();
+        mCanGetLocation = isProviderAvailable();
 
-        return canGetLocation;
+        return mCanGetLocation;
     }
 
     /**
@@ -131,7 +131,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
         try {
             if (isProviderAvailable()) {
 
-                canGetLocation = true;
+                mCanGetLocation = true;
 
                 // If the network is enabled, then get the network location
                 if (mNetworkEnabled) {
@@ -151,9 +151,12 @@ public class CurrentLocation extends Service implements LocationListener, Locati
                             Toast.LENGTH_SHORT)
                             .show();
                 }
+
             } else if (!mGPSEnabled) {
-                // We want to make sure the GPS is enabled on the phone
-                showNoGPSAlertMessage();
+                // Only show alert dialog if the SFPark data is already ready on the map
+                if (mMainActivity.isSFParkDataReady()) {
+                    showNoGPSAlertMessage();
+                }
             }
 
         } catch (Exception ex) {
@@ -168,24 +171,25 @@ public class CurrentLocation extends Service implements LocationListener, Locati
      */
     public void showNoGPSAlertMessage() {
 
-        if (alert != null && alert.isShowing()) {
+        if (mAlert != null && mAlert.isShowing()) {
             return;
         }
 
         AlertDialog.Builder alertDialog = new AlertDialog.Builder(mMainActivity);
 
+        alertDialog.setCancelable(false);
         alertDialog.setTitle("GPS Settings");
         alertDialog.setMessage("Your GPS seems to be disabled, do you want to enable it?");
 
-        // Add a YES button
+        // Add YES button
         alertDialog.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog,int which) {
+            public void onClick(DialogInterface dialog, int which) {
                 Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                 mMainActivity.startActivity(intent);
             }
         });
 
-        // Add a NO button
+        // Add NO button
         alertDialog.setNegativeButton("No", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int which) {
                 dialog.cancel();
@@ -193,16 +197,16 @@ public class CurrentLocation extends Service implements LocationListener, Locati
             }
         });
 
-        alert = alertDialog.create();
-        alert.show();
+        mAlert = alertDialog.create();
+        mAlert.show();
     }
 
     /**
      * Hide the No-GPS alert message box if it is currently showing on the screen.
      */
     public void hideNoGPSAlertMessage() {
-        if (alert != null) {
-            alert.dismiss();
+        if (mAlert != null) {
+            mAlert.dismiss();
         }
     }
 
@@ -225,7 +229,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
         // Check whether the GPS is enabled on the device
         mGPSEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
 
-        return ((mNetworkEnabled || mGPSEnabled) && keepTrack);
+        return ((mNetworkEnabled || mGPSEnabled) && mKeepTrack);
     }
 
     /**
@@ -240,7 +244,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
             mLocation = mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
 
             // Draw the current location on the map and save the coordinate to database
-            if (mLocation != null) {
+            if (mLocation != null && mMainActivity.isMapLoaded()) {
 
                 mMainActivity.placeCurrentLocationMarker(
                         new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
@@ -260,7 +264,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
             mLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
             // Draw the current location on the map and save the coordinate to database
-            if (mLocation != null) {
+            if (mLocation != null && mMainActivity.isMapLoaded()) {
 
                 mMainActivity.placeCurrentLocationMarker(
                         new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
@@ -271,7 +275,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
     @Override
     public void onLocationChanged(Location location) {
 
-        if (keepTrack) {
+        if (mKeepTrack) {
 
             mLocation = location;
 
@@ -292,7 +296,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
     public void onProviderEnabled(String provider) {
 
         // Hide the NO-GPS alert dialog box when the GPS is enabled and set the flag to true
-        canGetLocation = true;
+        mCanGetLocation = true;
         hideNoGPSAlertMessage();
     }
 
@@ -300,7 +304,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
     public void onProviderDisabled(String provider) {
 
         // Show the NO-GPS alert dialog box when the GPS is not enabled and set the flag to false
-        canGetLocation = false;
+        mCanGetLocation = false;
         showNoGPSAlertMessage();
     }
 
