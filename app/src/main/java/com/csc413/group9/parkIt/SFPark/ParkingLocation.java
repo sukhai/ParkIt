@@ -7,9 +7,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
- * Represent a parking location on the map. This parking location may or may not have the
+ * This class represent a parking location on the map. This parking location may or may not have the
  * information like type of parking (on/off street), name of parking location, description,
- * phone number, latitude, longitude, operation hours schedule, and/or rate schedule.
+ * phone number, latitude, longitude, operation hours schedule, and/or rate schedule. Most of these
+ * data will be given by the SFPark.
  *
  * Created by Su Khai Koh on 4/20/15.
  */
@@ -18,48 +19,138 @@ public class ParkingLocation {
     /**
      * The value for a rate schedule indicates that the parking location is having a street cleaning.
      */
-    public static final String VALUE_STREET_SWEEP      = "Str sweep";
+    public static final String VALUE_STREET_SWEEP = "Str sweep";
+
+    
+    /* General keys */
+    
+    /**
+     * The key for type in SFPark JSON object.
+     */
+    private static final String KEY_TYPE = "TYPE";
 
     /**
-     * The value for a rate schedule indicates that the parking location is free.
+     * The key for name in SFPark JSON object.
      */
-    public static final String VALUE_NO_CHARGE         = "No charge";
+    private static final String KEY_NAME = "NAME";
 
-    // General keys
-    private static final String KEY_TYPE               = "TYPE";
-    private static final String KEY_NAME               = "NAME";
-    private static final String KEY_DESCRIPTION        = "DESC";
-    private static final String KEY_TELEPHONE          = "TEL";
-    private static final String KEY_LOCATION           = "LOC";
-    private static final String KEY_OPERATION_HOURS    = "OPHRS";
-    private static final String KEY_RATES              = "RATES";
-    private static final String KEY_DAY                = "DAY";
+    /**
+     * The key for description in SFPark JSON object.
+     */
+    private static final String KEY_DESCRIPTION = "DESC";
 
-    // Operating hours keys, for off-street parking only
+    /**
+     * The key for telephone in SFPark JSON object.
+     */
+    private static final String KEY_TELEPHONE = "TEL";
+
+    /**
+     * The key for location in SFPark JSON object.
+     */
+    private static final String KEY_LOCATION = "LOC";
+
+    /**
+     * The key for operation hours in SFPark JSON object.
+     */
+    private static final String KEY_OPERATION_HOURS = "OPHRS";
+
+    /**
+     * The key for rates in SFPark JSON object.
+     */
+    private static final String KEY_RATES = "RATES";
+
+    
+    /* Operating hours keys, for off-street parking only */
+
+    /**
+     * The key for operation schedule in OPHRS JSON object.
+     */
     private static final String KEY_OPERATION_SCHEDULE = "OPS";
-    private static final String KEY_FROM               = "FROM";
-    private static final String KEY_TO                 = "TO";
-    private static final String KEY_BEGIN              = "BEG";
-    private static final String KEY_END                = "END";
 
-    // Hours keys
-    private static final String KEY_RATE               = "RATE";
-    private static final String KEY_RATE_SCHEDULE      = "RS";
-    private static final String KEY_RATE_QUALIFIER     = "RQ";
-    private static final String KEY_RATE_RESTRICTION   = "RR";
+    /**
+     * The key for from in OPHRS JSON object.
+     */
+    private static final String KEY_FROM = "FROM";
 
-    private boolean onStreet;               // Is the parking location on the street?
-    private String name;                    // The name of parking location
-    private String description;             // Returned for OSP only – usually address for the parking location
-    private String phoneNumber;             // Returned for OSP only – Contact telephone number for parking location
-    private Location[] locations;           // Location of this parking
-    private OperationHours[] hours;         // Returned for OSP only - the operating hours schedule information for this location
-    private RateSchedule[] rates;           // General pricing or rate information for this location
+    /**
+     * The key for to in OPHRS JSON object.
+     */
+    private static final String KEY_TO = "TO";
+
+    /**
+     * The key for beginning in OPHRS JSON object.
+     */
+    private static final String KEY_BEGIN = "BEG";
+
+    /**
+     * The key for end in OPHRS JSON object.
+     */
+    private static final String KEY_END = "END";
+
+    
+    /* Hours keys, for both on-street and off-street parking */
+
+    /**
+     * The key for rate in RATES JSON object.
+     */
+    private static final String KEY_RATE = "RATE";
+
+    /**
+     * The key for rate schedule in RATES JSON object.
+     */
+    private static final String KEY_RATE_SCHEDULE = "RS";
+
+    /**
+     * The key for rate qualifier in RATES JSON object.
+     */
+    private static final String KEY_RATE_QUALIFIER = "RQ";
+
+    /**
+     * The key for rate restriction in RATES JSON object.
+     */
+    private static final String KEY_RATE_RESTRICTION = "RR";
+
+    /**
+     * Flag for whether the parking location is on street or off street (garage parking).
+     */
+    private boolean mOnStreet;
+
+    /**
+     * The name of the parking location.
+     */
+    private String mName;
+
+    /**
+     * The description of the parking location. Available for off-street parking only.
+     * Usually the address for the parking location.
+     */
+    private String mDescription;
+
+    /**
+     * THe phone number of the parking location. Available for off-street parking only.
+     */
+    private String mPhoneNumber;
+
+    /**
+     * The location of this parking. Contain only 1 Location object if this is a off-street parking,
+     * 2 Location objects if this is a on-street parking, which represent both ends of the street.
+     */
+    private Location[] mLocations;
+
+    /**
+     * The operation hours of the parking location. Available for off-street parking only.
+     */
+    private OperationHours[] mHours;
+
+    /**
+     * General pricing or rate information for this parking location.
+     */
+    private RateSchedule[] mRates;
 
     /**
      * Constructor that get an available parking location and parse the data to class members. The
-     * parking location may or may not the following data name, description, phone number, location
-     * coordinate, operation hours schedule, and/or pricing information.
+     * parking location may or may not have the following data: name, description, phone number,
+     * location coordinate, operation hours schedule, and/or pricing information.
      * @param space the available space that contains the data
      */
     public ParkingLocation(JSONObject space) {
@@ -67,13 +158,75 @@ public class ParkingLocation {
         try {
             parseJSONObject(space);
         } catch (Exception ex) {
-            System.err.println("Error at creating SpaceAvailable: " + ex.getMessage());
+            System.err.println("Error at creating ParkingLocation: " + ex.getMessage());
         }
+    }
+
+
+    /**
+     * Get the name for this parking location if available, otherwise an empty string. Usually
+     * contains the name of parking location or street with from and to address.
+     * @return the name for this parking location if available, otherwise an empty string
+     */
+    public String getName() {
+        return mName;
+    }
+
+    /**
+     * Get the description of this parking location if available, otherwise an empty string. Usually
+     * contains the address for this parking location, and only available for off street parking.
+     * @return the description of this parking location if available, otherwise an empty string
+     */
+    public String getDescription() {
+        return mDescription;
+    }
+
+    /**
+     * Get the phone number for this parking location if available, otherwise an empty string. Only
+     * available for off-street parking space.
+     * @return the phone number for this parking location if this parking space is off street,
+     *         otherwise an empty string
+     */
+    public String getPhoneNumber() {
+        return mPhoneNumber;
+    }
+
+    /**
+     * Get the location coordinate of this parking location.
+     * @return the location coordinate of this parking location
+     */
+    public Location[] getLocation() {
+        return mLocations;
+    }
+
+    /**
+     * Get the operation hours schedule for this parking location if available, otherwise null. Only
+     * available for off street parking location.
+     * @return the operation hours schedule for this parking location if available, otherwise null
+     */
+    public OperationHours[] getOperationHours() {
+        return mHours;
+    }
+
+    /**
+     * Get the rate schedule for this parking location if available, otherwise null.
+     * @return the rate schedule for this parking location if available, otherwise null
+     */
+    public RateSchedule[] getRateSchedule() {
+        return mRates;
+    }
+
+    /**
+     * Determine whether this parking location is on street or off street (in a parking building).
+     * @return true if this parking location is on street, otherwise false
+     */
+    public boolean isOnStreet() {
+        return mOnStreet;
     }
 
     /**
      * Parse the given JSON object to class members. The given JSON object may or may not the
-     * following data name, description, phone number, location coordinate, operation hours
+     * following data: name, description, phone number, location coordinate, operation hours
      * schedule, and/or pricing information.
      * @param jsonObject the JSON object to get parsed
      * @throws JSONException any error when parsing the given JSON object
@@ -85,33 +238,33 @@ public class ParkingLocation {
 
         // Get the type
         String type = jsonObject.has(KEY_TYPE) ? jsonObject.getString(KEY_TYPE) : "";
-        this.onStreet = type.equalsIgnoreCase("on");
+        this.mOnStreet = type.equalsIgnoreCase("on");
 
         // Get the name
         String name = jsonObject.has(KEY_NAME) ? jsonObject.getString(KEY_NAME) : "";
-        this.name = name == null ? "" : name;
+        this.mName = name == null ? "" : name;
 
         // Get the description
         String desc = jsonObject.has(KEY_DESCRIPTION) ? jsonObject.getString(KEY_DESCRIPTION) : "";
-        this.description = desc == null ? "" : desc;
+        this.mDescription = desc == null ? "" : desc;
 
         // Get the pricing information (rates)
         JSONObject mRates = jsonObject.getJSONObject(KEY_RATES);
-        this.rates = getRates(mRates);
+        this.mRates = getRates(mRates);
 
         // Get the location coordinate on the map
         String location = jsonObject.has(KEY_LOCATION) ? jsonObject.getString(KEY_LOCATION) : "";
-        this.locations = getLocation(location);
+        this.mLocations = getLocation(location);
 
         // All data below is only for off-street parking space (parking lot building)
-        if (!onStreet) {
+        if (!mOnStreet) {
             // Get the phone number
-            phoneNumber = jsonObject.has(KEY_TELEPHONE) ? jsonObject.getString(KEY_TELEPHONE) : "";
+            mPhoneNumber = jsonObject.has(KEY_TELEPHONE) ? jsonObject.getString(KEY_TELEPHONE) : "";
 
             // Get the operation hours schedule
             JSONObject operationHours = jsonObject.has(KEY_OPERATION_HOURS) ?
                     jsonObject.getJSONObject(KEY_OPERATION_HOURS) : null;
-            this.hours = getOperationHours(operationHours);
+            this.mHours = getOperationHours(operationHours);
         }
     }
 
@@ -223,76 +376,30 @@ public class ParkingLocation {
     }
 
     /**
-     * Get the name for this parking location if available, otherwise an empty string. Usually
-     * contains the name of parking location or street with from and to address.
-     * @return the name for this parking location if available, otherwise an empty string
-     */
-    public String getName() {
-        return name;
-    }
-
-    /**
-     * Get the description of this parking location if available, otherwise an empty string. Usually
-     * contains the address for this parking location, and only available for off street parking.
-     * @return the description of this parking location if available, otherwise an empty string
-     */
-    public String getDescription() {
-        return description;
-    }
-
-    /**
-     * Get the phone number for this parking location if available, otherwise an empty string. Only
-     * available for off-street parking space.
-     * @return the phone number for this parking location if this parking space is off street,
-     *         otherwise an empty string
-     */
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    /**
-     * Get the location coordinate of this parking location.
-     * @return the location coordinate of this parking location
-     */
-    public Location[] getLocation() {
-        return locations;
-    }
-
-    /**
-     * Get the operation hours schedule for this parking location if available, otherwise null. Only
-     * available for off street parking location.
-     * @return the operation hours schedule for this parking location if available, otherwise null
-     */
-    public OperationHours[] getOperationHours() {
-        return hours;
-    }
-
-    /**
-     * Get the rate schedule for this parking location if available, otherwise null.
-     * @return the rate schedule for this parking location if available, otherwise null
-     */
-    public RateSchedule[] getRateSchedule() {
-        return rates;
-    }
-
-    /**
-     * Determine whether this parking location is on street or off street (in a parking building).
-     * @return true if this parking location is on street, otherwise false
-     */
-    public boolean isOnStreet() {
-        return onStreet;
-    }
-
-    /**
      * Represent the operation hours schedule for the parking location. The operation hours schedule
      * may or may not contains starting day, end day, begin time, and end time.
      */
     public class OperationHours {
 
-        private String oFromDay;            // Starting day
-        private String oToDay;              // End day
-        private String oBeginTime;          // Begin time
-        private String oEndTime;            // End time
+        /**
+         * The starting day.
+         */
+        private String oFromDay;
+
+        /**
+         * The ending day.
+         */
+        private String oToDay;
+
+        /**
+         * The begin time.
+         */
+        private String oBeginTime;
+
+        /**
+         * The end time.
+         */
+        private String oEndTime;
 
         /**
          * Default constructor.
@@ -363,13 +470,35 @@ public class ParkingLocation {
      */
     public class RateSchedule {
 
-        private String rBeginTime;              // Begin time
-        private String rEndTime;                // End time
-        private String rRate;                   // Applicable rate
-        private String rDescription;            // Description of the rate schedule
-        private String rRateQualifier;          // Rate qualifier e.g. Per Hr
-        private String rRateRestriction;        // Rate restriction
-        private String rDay;                    // Rate per day
+        /**
+         * The begin time.
+         */
+        private String rBeginTime;
+
+        /**
+         * The end time.
+         */
+        private String rEndTime;
+
+        /**
+         * The applicable rate.
+         */
+        private String rRate;
+
+        /**
+         * The description of the rate schedule.
+         */
+        private String rDescription;
+
+        /**
+         * The rate qualifier e.g. Per Hr
+         */
+        private String rRateQualifier;
+
+        /**
+         * The rate restriction e.g. Str sweep
+         */
+        private String rRateRestriction;
 
         /**
          * The constructor that takes in a JSON object and get the values for this class' members.
@@ -391,7 +520,6 @@ public class ParkingLocation {
             rDescription = rate.has(KEY_DESCRIPTION) ? rate.getString(KEY_DESCRIPTION) : "";
             rRateQualifier = rate.has(KEY_RATE_QUALIFIER) ? rate.getString(KEY_RATE_QUALIFIER) : "";
             rRateRestriction = rate.has(KEY_RATE_RESTRICTION) ? rate.getString(KEY_RATE_RESTRICTION) : "";
-            rDay = rate.has(KEY_DAY) ? rate.getString(KEY_DAY) : "";
         }
 
         /**
@@ -446,15 +574,6 @@ public class ParkingLocation {
          */
         public String getRateRestriction() {
             return rRateRestriction;
-        }
-
-        /**
-         * Get the rate per day for this rate schedule
-         *
-         * @return the rate per day for this rate schedule
-         */
-        public String getDay() {
-            return rDay;
         }
     }
 }
