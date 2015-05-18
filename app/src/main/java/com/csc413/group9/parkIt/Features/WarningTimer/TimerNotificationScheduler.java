@@ -11,7 +11,7 @@ import android.os.IBinder;
 import java.util.Calendar;
 
 /**
- * A scheduler that scheduler a time to send notification to the user.
+ * A scheduler that schedule a time to send notification to the user.
  *
  * Created by Su Khai Koh on 4/26/15.
  */
@@ -34,7 +34,7 @@ public class TimerNotificationScheduler extends Service {
     }
 
     /**
-     * Set the schedule to send a timer notification.
+     * Set a schedule to send a timer notification.
      * @param calendar the time to send the notification
      */
     public void setNotificationSchedule(Calendar calendar) {
@@ -43,7 +43,7 @@ public class TimerNotificationScheduler extends Service {
     }
 
     /**
-     * The schedule service.
+     * The scheduling service.
      */
     public class ScheduleService extends Binder {
         TimerNotificationScheduler getService() {
