@@ -4,8 +4,6 @@ import android.app.AlertDialog;
 import android.app.Service;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.location.Address;
-import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -17,12 +15,8 @@ import android.widget.Toast;
 import com.google.android.gms.maps.LocationSource;
 import com.google.android.gms.maps.model.LatLng;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Locale;
-
 /**
- * The current location of the device. The client can set whether to keep on tracking the current
+ * The current location of the device. The user can set whether to keep on tracking the current
  * location of the device or not.
  *
  * Created by Su Khai Koh on 4/17/15.
@@ -30,9 +24,9 @@ import java.util.Locale;
 public class CurrentLocation extends Service implements LocationListener, LocationSource {
 
     /**
-     * The minimum time before getting a new location update. (1 seconds)
+     * The minimum time before getting a new location update. (3 seconds)
      */
-    private static final long MIN_TIME = 1000;
+    private static final long MIN_TIME = 3000;
 
     /**
      * The minimum distance before getting a new location update. (2 meters)
@@ -158,9 +152,8 @@ public class CurrentLocation extends Service implements LocationListener, Locati
                             .show();
                 }
             } else if (!mGPSEnabled) {
-                if (mMainActivity.isSFParkDataReady()) {
-                    showNoGPSAlertMessage();
-                }
+                // We want to make sure the GPS is enabled on the phone
+                showNoGPSAlertMessage();
             }
 
         } catch (Exception ex) {
@@ -181,16 +174,18 @@ public class CurrentLocation extends Service implements LocationListener, Locati
 
         AlertDialog.Builder alertDialog = new AlertDialog.Builder(mMainActivity);
 
-        alertDialog.setCancelable(false);
         alertDialog.setTitle("GPS Settings");
         alertDialog.setMessage("Your GPS seems to be disabled, do you want to enable it?");
+
+        // Add a YES button
         alertDialog.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int which) {
+            public void onClick(DialogInterface dialog,int which) {
                 Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                 mMainActivity.startActivity(intent);
             }
         });
 
+        // Add a NO button
         alertDialog.setNegativeButton("No", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int which) {
                 dialog.cancel();
@@ -245,7 +240,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
             mLocation = mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
 
             // Draw the current location on the map and save the coordinate to database
-            if (mLocation != null && mMainActivity.isMapLoaded()) {
+            if (mLocation != null) {
 
                 mMainActivity.placeCurrentLocationMarker(
                         new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
@@ -265,70 +260,12 @@ public class CurrentLocation extends Service implements LocationListener, Locati
             mLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
             // Draw the current location on the map and save the coordinate to database
-            if (mLocation != null && mMainActivity.isMapLoaded()) {
+            if (mLocation != null) {
 
                 mMainActivity.placeCurrentLocationMarker(
                         new LatLng(mLocation.getLatitude(), mLocation.getLongitude()));
             }
         }
-    }
-
-    /**
-     * Get the address from the given location. The result string consist of address, city, state,
-     * postal code, and country name with each separated by a comma.
-     * @param loc location
-     * @return a string that consist of address, city, state, postal code, and country name with
-     *         each separated by a comma
-     */
-    private String getAddress(Location loc) {
-
-        String addr = "";
-
-        Geocoder geocoder;
-        List<Address> addresses = null;
-        geocoder = new Geocoder(mMainActivity, Locale.getDefault());
-
-        try {
-            addresses = geocoder.getFromLocation(loc.getLatitude(), loc.getLongitude(), 1);
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-
-        if (addresses != null && addresses.size() > 0) {
-
-            Address fullAddress = addresses.get(0);
-
-            String address = fullAddress.getAddressLine(0) == null? "" : addresses.get(0).getAddressLine(0);
-            String city = fullAddress.getAddressLine(1) == null ? "" : getCity(addresses.get(0).getAddressLine(1));
-            String postalCode = fullAddress.getPostalCode() == null ? "" : addresses.get(0).getPostalCode().split(" ")[0];
-            String country = fullAddress.getCountryName() == null ? "" : addresses.get(0).getCountryName();
-
-            addr = address + ", " + city + ", " + postalCode + ", " + country;
-        }
-
-        return addr;
-    }
-
-    /**
-     * Get the city name from the given address.
-     * @param address the address
-     * @return the city name from the given address
-     */
-    private String getCity(String address) {
-
-        String addr = address;
-
-        if (address.length() > 0 && Character.isDigit(address.charAt(address.length()-1))) {
-
-            for (int i = address.length() - 1; i >= 0; i--) {
-                if (address.charAt(i) == ' ') {
-                    addr = address.substring(0, i);
-                    break;
-                }
-            }
-        }
-
-        return addr;
     }
 
     @Override
@@ -354,6 +291,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
     @Override
     public void onProviderEnabled(String provider) {
 
+        // Hide the NO-GPS alert dialog box when the GPS is enabled and set the flag to true
         canGetLocation = true;
         hideNoGPSAlertMessage();
     }
@@ -361,6 +299,7 @@ public class CurrentLocation extends Service implements LocationListener, Locati
     @Override
     public void onProviderDisabled(String provider) {
 
+        // Show the NO-GPS alert dialog box when the GPS is not enabled and set the flag to false
         canGetLocation = false;
         showNoGPSAlertMessage();
     }
