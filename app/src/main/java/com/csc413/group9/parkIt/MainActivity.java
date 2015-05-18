@@ -48,51 +48,163 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * The main activity of the application. This app will have the basic functionality of Google Map,
+ * SFPark data, and connectivity to the database. The special features of this app are Warning
+ * Timer, Search, and Highlight Settings.
+ */
 public class MainActivity extends FragmentActivity implements
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         GoogleMap.OnMapLoadedCallback,
         SensorEventListener {
 
+    /**
+     * Key for SFPark data, if the data is ready or not. This key is used for saving and restoring
+     * the state instance.
+     */
     private static final String KEY_SFPARK_DATA_READY = "ParkIt.SFPark_Data_Ready";
-    private static final String KEY_CURRENT_LOCATION_MARKER = "ParkIt.Current_Location_Marker";
-    private static final String KEY_CLICKED_LOCATION_MARKER = "ParkIt.Clicked_Location_Marker";
-    private static final String KEY_CLICKED_MARKER_INFO_WINDOW = "ParkIt.Clicked_Marker_Info_Window";
-    private static final String KEY_PARKING_MARKER_INFO_WINDOW = "ParkIt.Parking_Marker_Info_Window";
-    private static final String KEY_CAMERA_POSITION = "ParkIt.Camera_Position";
-
-    private static final float CAMERA_ZOOM_LEVEL = 18f;
-
-    private static final double OFFSET_Y = 0.005f;
-
-    public static boolean startedFromNotification = false;
 
     /**
-     * A reference to the ViewSwitcher, which will switch between splash screen and main activity views
+     * Key for clicked location marker, if the data is ready or not. This key is used for saving
+     * and restoring the state instance.
+     */
+    private static final String KEY_CLICKED_LOCATION_MARKER = "ParkIt.Clicked_Location_Marker";
+
+    /**
+     * Key for clicked marker's info window, if the data is ready or not. This key is used for
+     * saving and restoring the state instance.
+     */
+    private static final String KEY_CLICKED_MARKER_INFO_WINDOW = "ParkIt.Clicked_Marker_Info_Window";
+
+    /**
+     * Key for parking marker's info window, if the data is ready or not. This key is used for
+     * saving and restoring the state instance.
+     */
+    private static final String KEY_PARKING_MARKER_INFO_WINDOW = "ParkIt.Parking_Marker_Info_Window";
+
+    /**
+     * Key for camera's position, if the data is ready or not. This key is used for saving and
+     * restoring the state instance.
+     */
+    private static final String KEY_CAMERA_POSITION = "ParkIt.Camera_Position";
+
+    /**
+     * Camera zoom level.
+     */
+    private static final float CAMERA_ZOOM_LEVEL = 18f;
+
+    /**
+     * Offset of y coordinate. This value will be used for showing the parking marker's info window.
+     */
+    private static final double OFFSET_Y = 0.005f;
+
+    /**
+     * Flag for whether this activity is started by clicking the notification from the notification
+     * bar.
+     */
+    public static boolean mStartedFromNotification = false;
+
+    /**
+     * A reference to the ViewSwitcher, which will switch between splash screen and main activity
+     * views.
      */
     private ViewSwitcher mViewSwitcher;
 
+    /**
+     * A reference to the Google map.
+     */
     private GoogleMap mMap;
-    private Marker mClickedLocationMarker;
-    private Marker mParkingGarageMarker;
-    private Marker mCurrentLocationMarker;
-    private GoogleApiClient mGoogleApiClient;
-    private ParkingInformation mParkingInfo;
-    private CurrentLocation mCurrentLocation;
-    private WarningTimer mWarningTimer;
-    private PopupWindow mTimerWindow;
-    private PopupWindow mSettingWindow;
-    private SensorManager mSensorManager;
-    private float mMarkerRotation;
-    private boolean mParkingMarkerInfoWindow = false;
-    private boolean mClickedMarkerInfoWindow = false;
-    private boolean mapLoaded = false;
-    private boolean showOnStreetParking = true;
-    private boolean showOffStreetParking = true;
 
+    /**
+     * A reference to the Google API Client.
+     */
+    private GoogleApiClient mGoogleApiClient;
+
+    /**
+     * A reference to the Sensor Manager to check the direction of the device.
+     */
+    private SensorManager mSensorManager;
+
+    /**
+     * The clicked location marker (the red marker).
+     */
+    private Marker mClickedLocationMarker;
+
+    /**
+     * The parking garage marker (the P icon marker).
+     */
+    private Marker mParkingGarageMarker;
+
+    /**
+     * The current location marker (the purple marker).
+     */
+    private Marker mCurrentLocationMarker;
+
+    /**
+     * A reference to the ParkingInformation.
+     */
+    private ParkingInformation mParkingInfo;
+
+    /**
+     * A reference to the CurrentLocation.
+     */
+    private CurrentLocation mCurrentLocation;
+
+    /**
+     * A reference to the StreetHighlightSettings.
+     */
     private StreetHighlightSettings mStreetHighlightSettings;
+
+    /**
+     * A reference to the Search.
+     */
     private Search mSearch;
 
+    /**
+     * A reference to the WarningTimer.
+     */
+    private WarningTimer mWarningTimer;
+
+    /**
+     * The popup window for warning timer.
+     */
+    private PopupWindow mTimerWindow;
+
+    /**
+     * The popup window for settings window.
+     */
+    private PopupWindow mSettingWindow;
+
+    /**
+     * The rotation value for the current location's marker.
+     */
+    private float mMarkerRotation;
+
+    /**
+     * Flag for whether the parking marker's info window is shown.
+     */
+    private boolean mParkingMarkerInfoWindow = false;
+
+    /**
+     * Flag for whether the clicked marker's info window is shown.
+     */
+    private boolean mClickedMarkerInfoWindow = false;
+
+    /**
+     * Flag for whether the Google map has loaded.
+     */
+    private boolean mapLoaded = false;
+
+    /**
+     * Flag for whether to show on-street parking.
+     */
+    private boolean mShowOnStreetParking = true;
+
+    /**
+     * Flag for whether to show off-street parking.
+     */
+    private boolean mShowOffStreetParking = true;
 
     @Override
     protected void onStart() {
@@ -100,8 +212,8 @@ public class MainActivity extends FragmentActivity implements
 
         // Load user's settings
         mStreetHighlightSettings = new StreetHighlightSettings();
-        showOnStreetParking = mStreetHighlightSettings.isOnStreetHighlighted();
-        showOffStreetParking = mStreetHighlightSettings.isOffStreetHighlighted();
+        mShowOnStreetParking = mStreetHighlightSettings.isOnStreetHighlighted();
+        mShowOffStreetParking = mStreetHighlightSettings.isOffStreetHighlighted();
     }
 
     @Override
@@ -113,14 +225,15 @@ public class MainActivity extends FragmentActivity implements
             finish();
         }
 
-        //Initialize the ViewSwitcher object
+        // Initialize the ViewSwitcher object and add splash view and main activity view to the
+        // ViewSwitcher
         mViewSwitcher = new ViewSwitcher(MainActivity.this);
         mViewSwitcher.addView(ViewSwitcher.inflate(MainActivity.this, R.layout.splash, null));
         mViewSwitcher.addView(ViewSwitcher.inflate(MainActivity.this, R.layout.activity_main, null));
 
         setContentView(mViewSwitcher);
-  //      setContentView(R.layout.activity_main);
 
+        // Initialize the DatabaseManager
         DatabaseManager.initializeInstance(this);
 
         buildGoogleApiClient();
@@ -129,6 +242,7 @@ public class MainActivity extends FragmentActivity implements
 
         mParkingInfo = new ParkingInformation(this, mMap);
 
+        // Load saved ParkingInformation's data if possible
         if (savedInstanceState == null) {
             mParkingInfo.saveParkingMarkersFragment();
             mParkingInfo.getSFParkData();
@@ -139,124 +253,24 @@ public class MainActivity extends FragmentActivity implements
             mParkingInfo.getSFParkData();
         }
 
+        // Initialize and track the current location
         mCurrentLocation = new CurrentLocation(this);
         trackDeviceLocation(null);
 
         mSearch = new Search(this);
+
         mWarningTimer = new WarningTimer(this);
         mWarningTimer.bindService();
 
-        if (startedFromNotification) {
-            startedFromNotification = false;
+        if (mStartedFromNotification) {
+            mStartedFromNotification = false;
             mWarningTimer.goToParkedLocation();
-        }
-    }
-
-    public boolean showOnStreetParking() {
-        return showOnStreetParking;
-    }
-
-    public boolean showOffStreetParking() {
-        return showOffStreetParking;
-    }
-
-    public void showMainLayout() {
-        if (mViewSwitcher != null) {
-            mViewSwitcher.showNext();
-
-            trackDeviceLocation(null);
-        }
-    }
-
-    public boolean isSFParkDataReady() {
-        return mParkingInfo == null ? false : mParkingInfo.isSFParkDataReady();
-    }
-
-    /**
-     * Build Google Map.
-     */
-    private synchronized void buildGoogleMap() {
-
-        android.support.v4.app.FragmentManager fragmentManager = getSupportFragmentManager();
-
-        RetainMapFragment mapFragment =
-                (RetainMapFragment) fragmentManager.findFragmentById(R.id.map);
-
-        mMap = mapFragment.getMap();
-
-        mMap.setBuildingsEnabled(false);
-        mMap.setIndoorEnabled(false);
-        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
-            @Override
-            public void onMapClick(LatLng latLng) {
-
-                if (mapLoaded) {
-                    placeMarker(latLng);
-                }
-
-                mCurrentLocation.stopLocationUpdates();
-            }
-        });
-
-        mMap.setOnMarkerClickListener(new MarkerClickedListener());
-        mMap.setInfoWindowAdapter(new CustomInfoWindowAdapter());
-        mMap.setOnMapLoadedCallback(this);
-
-        // Move camera to San Francisco
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(37.7833, -122.4167), 12));
-    }
-
-    /**
-     * Build the Google API client.
-     */
-    private synchronized void buildGoogleApiClient() {
-
-        mGoogleApiClient = new GoogleApiClient.Builder(this)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(LocationServices.API)
-                .build();
-    }
-
-    /**
-     * Build and initialize the SensorManager.
-     */
-    private synchronized void buildSensorManager() {
-
-        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
-                SensorManager.SENSOR_DELAY_NORMAL);
-    }
-
-    private void hideAllInfoWindows() {
-
-        if (mClickedLocationMarker != null) {
-            mClickedLocationMarker.hideInfoWindow();
-        }
-
-        if (mParkingGarageMarker != null) {
-            mParkingGarageMarker.hideInfoWindow();
         }
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-
-        // Store the current marker's data if it exists
-        if (mCurrentLocationMarker != null) {
-            MarkerOptions currentLocationMarker = new MarkerOptions()
-                    .position(mCurrentLocationMarker.getPosition())
-                    .title(mCurrentLocationMarker.getTitle())
-                    .rotation(mClickedLocationMarker.getRotation())
-                    .anchor(0.5f, 0.75f)
-                    .flat(true)
-                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_user));
-
-            mCurrentLocationMarker.remove();
-            outState.putParcelable(KEY_CURRENT_LOCATION_MARKER, currentLocationMarker);
-        }
 
         // Store the clicked marker's data if it exists
         if (mClickedLocationMarker != null) {
@@ -283,13 +297,6 @@ public class MainActivity extends FragmentActivity implements
         boolean ready = savedInstanceState.getBoolean(KEY_SFPARK_DATA_READY);
         mParkingInfo.setSfParkDataReady(ready);
         mParkingInfo.getSFParkData();
-
-        // Restore current location marker
-        MarkerOptions currentLocation =
-                (MarkerOptions) savedInstanceState.getParcelable(KEY_CURRENT_LOCATION_MARKER);
-        if (currentLocation != null) {
-            mCurrentLocationMarker = mMap.addMarker(currentLocation);
-        }
 
         // Restore clicked location marker
         MarkerOptions clickedLocation =
@@ -381,6 +388,8 @@ public class MainActivity extends FragmentActivity implements
     @Override
     public void onSensorChanged(SensorEvent event) {
 
+        // Rotate the current location's marker (purple marker) on the map when the direction of
+        // the device has changed
         mMarkerRotation = event.values[0];
 
         if (mCurrentLocationMarker != null) {
@@ -390,6 +399,7 @@ public class MainActivity extends FragmentActivity implements
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
     }
 
     @Override
@@ -401,11 +411,47 @@ public class MainActivity extends FragmentActivity implements
     }
 
     /**
-     * Return true if the map is loaded, otherwise false.
-     * @return true if the map is loaded, otherwise false
+     * Determine if the Google map is loaded.
+     * @return true if the Google map is loaded, false otherwise
      */
     public boolean isMapLoaded() {
         return mapLoaded;
+    }
+
+    /**
+     * Determine whether the SFPark data is ready.
+     * @return true if the SFPark data is ready, false otherwise
+     */
+    public boolean isSFParkDataReady() {
+        return mParkingInfo == null ? false : mParkingInfo.isSFParkDataReady();
+    }
+
+    /**
+     * Determine whether to show on-street parking on the Google map or not.
+     * @return true if the Google map needs to show on-street parking, false otherwise
+     */
+    public boolean showOnStreetParking() {
+        return mShowOnStreetParking;
+    }
+
+    /**
+     * Determine whether to show off-street parking on the Google map or not.
+     * @return true if the Google map needs to show off-street parking, false otherwise
+     */
+    public boolean showOffStreetParking() {
+        return mShowOffStreetParking;
+    }
+
+    /**
+     * Switch the ViewSwitcher to show the main activity view. This will also track the current
+     * location once the view has switched.
+     */
+    public void showMainView() {
+        if (mViewSwitcher != null) {
+            mViewSwitcher.showNext();
+
+            trackDeviceLocation(null);
+        }
     }
 
     /**
@@ -463,6 +509,7 @@ public class MainActivity extends FragmentActivity implements
         mWarningTimer.setParkedLocation(getAddress(location), mCurrentLocationMarker.getPosition());
         mWarningTimer.setWarningTime();
 
+        // Close the warning timer window
         mTimerWindow.dismiss();
 
         Toast.makeText(this,
@@ -480,6 +527,10 @@ public class MainActivity extends FragmentActivity implements
         mTimerWindow.dismiss();
     }
 
+    /**
+     * Show the settings window.
+     * @param view
+     */
     public void showSettingWindow(View view) {
 
         // Get the setting view layout
@@ -496,31 +547,31 @@ public class MainActivity extends FragmentActivity implements
 
             // Add listeners to checkboxes
             CheckBox checkBoxOnStreet = (CheckBox) settingView.findViewById(R.id.checkbox_onstreet);
-            checkBoxOnStreet.setChecked(showOnStreetParking);
+            checkBoxOnStreet.setChecked(mShowOnStreetParking);
             checkBoxOnStreet.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     if (mParkingInfo.isSFParkDataReady()) {
-                        showOnStreetParking = ((CheckBox) v).isChecked();
-                        mParkingInfo.highlightStreet(showOnStreetParking, showOffStreetParking);
+                        mShowOnStreetParking = ((CheckBox) v).isChecked();
+                        mParkingInfo.highlightStreet(mShowOnStreetParking, mShowOffStreetParking);
 
                         // Store settings
-                        mStreetHighlightSettings.setHighlighted(showOnStreetParking, showOffStreetParking);
+                        mStreetHighlightSettings.setHighlighted(mShowOnStreetParking, mShowOffStreetParking);
                     }
                 }
             });
 
             CheckBox checkBoxOffStreet = (CheckBox) settingView.findViewById(R.id.checkbox_offstreet);
-            checkBoxOffStreet.setChecked(showOffStreetParking);
+            checkBoxOffStreet.setChecked(mShowOffStreetParking);
             checkBoxOffStreet.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     if (mParkingInfo.isSFParkDataReady()) {
-                        showOffStreetParking = ((CheckBox) v).isChecked();
-                        mParkingInfo.highlightStreet(showOnStreetParking, showOffStreetParking);
+                        mShowOffStreetParking = ((CheckBox) v).isChecked();
+                        mParkingInfo.highlightStreet(mShowOnStreetParking, mShowOffStreetParking);
 
                         // Store settings
-                        mStreetHighlightSettings.setHighlighted(showOnStreetParking, showOffStreetParking);
+                        mStreetHighlightSettings.setHighlighted(mShowOnStreetParking, mShowOffStreetParking);
                     }
                 }
             });
@@ -530,6 +581,10 @@ public class MainActivity extends FragmentActivity implements
         mSettingWindow.showAtLocation(settingView, Gravity.CENTER, 0, 0);
     }
 
+    /**
+     * Close the settings window.
+     * @param view the view of the application
+     */
     public void closeSettingWindow(View view) {
         mSettingWindow.dismiss();
     }
@@ -561,11 +616,21 @@ public class MainActivity extends FragmentActivity implements
         }
     }
 
+    /**
+     * Search the location on the Google map.
+     * @param view the view of the application
+     * @throws Exception any exception
+     */
     public void searchLocation(View view) throws Exception {
 
         mSearch.geoLocate(view);
     }
 
+    /**
+     * Place the current location marker on the map (purple marker). This will hide all info windows
+     * of other markers.
+     * @param location the location of the marker should be placed
+     */
     public void placeCurrentLocationMarker(LatLng location) {
 
         if (mMap == null) {
@@ -601,6 +666,11 @@ public class MainActivity extends FragmentActivity implements
         }
     }
 
+    /**
+     * Place a marker on the given location. The marker is red color, and will remove parking
+     * marker's info window and the current location's marker from the Google map.
+     * @param location the location of the marker should be placed
+     */
     public void placeMarker(LatLng location) {
 
         if (mMap == null) {
@@ -638,6 +708,11 @@ public class MainActivity extends FragmentActivity implements
         }
     }
 
+    /**
+     * Animate the current location marker from the current position to the specified position.
+     * This will make the current location move smoothly on the map.
+     * @param toPosition the position to be moved to
+     */
     public void animateMarker(final LatLng toPosition) {
 
         final Handler handler = new Handler();
@@ -667,6 +742,12 @@ public class MainActivity extends FragmentActivity implements
         });
     }
 
+    /**
+     * Get the address from the given Location object.
+     * @param loc the location that stored the address
+     * @return the address from the given Location object if the location exist, otherwise will
+     *         return an empty string
+     */
     private String getAddress(Location loc) {
 
         String addr = "";
@@ -713,6 +794,81 @@ public class MainActivity extends FragmentActivity implements
         }
     }
 
+    /**
+     * Build Google Map.
+     */
+    private synchronized void buildGoogleMap() {
+
+        android.support.v4.app.FragmentManager fragmentManager = getSupportFragmentManager();
+
+        RetainMapFragment mapFragment =
+                (RetainMapFragment) fragmentManager.findFragmentById(R.id.map);
+
+        mMap = mapFragment.getMap();
+
+        mMap.setBuildingsEnabled(false);
+        mMap.setIndoorEnabled(false);
+        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(LatLng latLng) {
+
+                if (mapLoaded) {
+                    placeMarker(latLng);
+                }
+
+                mCurrentLocation.stopLocationUpdates();
+            }
+        });
+
+        mMap.setOnMarkerClickListener(new MarkerClickedListener());
+        mMap.setInfoWindowAdapter(new CustomInfoWindowAdapter());
+        mMap.setOnMapLoadedCallback(this);
+
+        // Move camera to San Francisco
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(37.7833, -122.4167), 12));
+    }
+
+    /**
+     * Build the Google API client.
+     */
+    private synchronized void buildGoogleApiClient() {
+
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(LocationServices.API)
+                .build();
+    }
+
+    /**
+     * Build and initialize the SensorManager.
+     */
+    private synchronized void buildSensorManager() {
+
+        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+                SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    /**
+     * Hide all info windows. This includes both parking marker's info window and clicked location
+     * marker's info window.
+     */
+    private void hideAllInfoWindows() {
+
+        if (mClickedLocationMarker != null) {
+            mClickedLocationMarker.hideInfoWindow();
+        }
+
+        if (mParkingGarageMarker != null) {
+            mParkingGarageMarker.hideInfoWindow();
+        }
+    }
+
+    /**
+     * A class that handles the action when a marker on the map is clicked.
+     */
     private class MarkerClickedListener implements GoogleMap.OnMarkerClickListener {
 
         @Override
@@ -731,16 +887,25 @@ public class MainActivity extends FragmentActivity implements
             return true;
         }
 
+        /**
+         * Show garage parking marker. This will hide all other markers' info window on the Google
+         * map.
+         * @param marker the marker that is clicked
+         */
         private void showGarageParkingMarker(Marker marker) {
+            // Hide all info windows on the Google map
             hideAllInfoWindows();
 
             if (mParkingGarageMarker == null || !mParkingGarageMarker.equals(marker)) {
 
+                // If this marker is different than the previous marker, then set the previous
+                // marker to be the new marker and show the info window
                 mParkingGarageMarker = marker;
                 mParkingGarageMarker.showInfoWindow();
                 mParkingMarkerInfoWindow = true;
                 mClickedMarkerInfoWindow = false;
 
+                // Get the location of this marker and move the camera to this marker
                 LatLng position = new LatLng(mParkingGarageMarker.getPosition().latitude  + OFFSET_Y,
                         mParkingGarageMarker.getPosition().longitude);
 
@@ -749,6 +914,8 @@ public class MainActivity extends FragmentActivity implements
 
             } else if (mParkingGarageMarker.equals(marker) && !mParkingMarkerInfoWindow) {
 
+                // If this clicked marker is the same as previous marker but the info window is not
+                // shown, the show it and move the camera to this marker
                 mClickedMarkerInfoWindow = false;
                 mParkingMarkerInfoWindow = true;
                 mParkingGarageMarker.showInfoWindow();
@@ -765,22 +932,33 @@ public class MainActivity extends FragmentActivity implements
             }
         }
 
+        /**
+         * Show clicked location marker. This will hide all other markers' info window on the Google
+         * map.
+         * @param marker the marker that is clicked
+         */
         private void showClickedMarker(Marker marker) {
+            // Hide all info windows on the Google map
             hideAllInfoWindows();
 
             if (mClickedLocationMarker == null || !mClickedLocationMarker.equals(marker)) {
 
+                // If this marker is different than the previous marker, then set the previous
+                // marker to be the new marker and show the info window
                 mClickedLocationMarker = marker;
                 mClickedLocationMarker.showInfoWindow();
                 mClickedMarkerInfoWindow = true;
                 mParkingMarkerInfoWindow = false;
 
+                // Get the location of this marker and move the camera to this marker
                 mMap.animateCamera(
                         CameraUpdateFactory.newLatLngZoom(mClickedLocationMarker.getPosition(),
                                 mMap.getCameraPosition().zoom));
 
             } else if (mClickedLocationMarker.equals(marker) && !mClickedMarkerInfoWindow) {
 
+                // If this clicked marker is the same as previous marker but the info window is not
+                // shown, the show it and move the camera to this marker
                 mParkingMarkerInfoWindow = false;
                 mClickedMarkerInfoWindow = true;
                 mClickedLocationMarker.showInfoWindow();
@@ -793,14 +971,22 @@ public class MainActivity extends FragmentActivity implements
                 mParkingMarkerInfoWindow = false;
                 mClickedMarkerInfoWindow = false;
             }
-
         }
     }
 
+    /**
+     * A class that modify the info window of the markers.
+     */
     private class CustomInfoWindowAdapter implements GoogleMap.InfoWindowAdapter {
 
+        /**
+         * A reference to the View.
+         */
         private View mView;
 
+        /**
+         * Default constructor. Get the View of the custom info window.
+         */
         CustomInfoWindowAdapter() {
             mView = getLayoutInflater().inflate(R.layout.window_parking_info, null);
         }

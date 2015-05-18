@@ -81,7 +81,7 @@ public class TimerNotificationService extends Service {
         // Launch MainActivity if the user clicked on this notification
         PendingIntent contentIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
 
-        MainActivity.startedFromNotification = true;
+        MainActivity.mStartedFromNotification = true;
 
         Notification notification = new NotificationCompat.Builder(this)
                 .setContentTitle("Time is running out!")
