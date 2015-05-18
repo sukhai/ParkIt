@@ -8,14 +8,21 @@ import com.csc413.group9.parkIt.Database.DatabaseHelper;
 import com.csc413.group9.parkIt.Database.DatabaseManager;
 
 /**
+ * A class that handle the user settings for the street highlights. The user can set either to
+ * highlight on-street parking, off-street parking, or both types of parking on the Google map. The
+ * settings will be stored and retrieved from the database. So the data will be available again
+ * if the app restarts.
+ *
  * Created by Su Khai Koh on 5/6/15.
  */
 public class StreetHighlightSettings {
 
-    public StreetHighlightSettings() {
-
-    }
-
+    /**
+     * Set whether to highlight or not the on-street and off-street parking. The settings will be
+     * stored in the database.
+     * @param onStreet highlight on-street parking?
+     * @param offStreet highlight off-street parking?
+     */
     public void setHighlighted(boolean onStreet, boolean offStreet) {
 
         SQLiteDatabase db = DatabaseManager.getInstance().open();
@@ -36,6 +43,11 @@ public class StreetHighlightSettings {
         DatabaseManager.getInstance().close();
     }
 
+    /**
+     * Check whether the on-street parking is highlighted. This will check the stored value from the
+     * database.
+     * @return true if the on-street parking should be highlighted, false otherwise
+     */
     public boolean isOnStreetHighlighted() {
 
         SQLiteDatabase db = DatabaseManager.getInstance().open();
@@ -58,6 +70,11 @@ public class StreetHighlightSettings {
         return value == DatabaseHelper.BOOLEAN_TRUE;
     }
 
+    /**
+     * Check whether the off-street parking is highlighted. This will check the stored value from
+     * the database.
+     * @return true if the off-street parking should be highlighted, false otherwise
+     */
     public boolean isOffStreetHighlighted() {
 
         SQLiteDatabase db = DatabaseManager.getInstance().open();
