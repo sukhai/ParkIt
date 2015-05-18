@@ -17,6 +17,9 @@ import java.util.ArrayList;
  */
 public class ParkingMarkers extends Fragment {
 
+    /**
+     * The tag for this class.
+     */
     public static final String TAG_PARKING_MARKERS = "ParkIt.ParkingInformation.ParkingMarkers";
 
     /**
@@ -37,6 +40,10 @@ public class ParkingMarkers extends Fragment {
         setRetainInstance(true);
     }
 
+    /**
+     * Add the given on-street marker to the list.
+     * @param marker
+     */
     public void addOnStreetParkingMarker(Polyline marker) {
 
         if (onStreetParkingMarkers == null) {
@@ -46,10 +53,18 @@ public class ParkingMarkers extends Fragment {
         onStreetParkingMarkers.add(marker);
     }
 
+    /**
+     * Get the list that contains all the on-street parking markers.
+     * @return
+     */
     public ArrayList<Polyline> getOnStreetParkingMarkers() {
         return onStreetParkingMarkers;
     }
 
+    /**
+     * Add the given off-street parking marker to the list.
+     * @param marker
+     */
     public void addOffStreetParkingMarker(Marker marker) {
 
         if (offStreetParkingMarkers == null) {
@@ -59,6 +74,10 @@ public class ParkingMarkers extends Fragment {
         offStreetParkingMarkers.add(marker);
     }
 
+    /**
+     * Get the list that contains all the off-street parking markers.
+     * @return
+     */
     public ArrayList<Marker> getOffStreetParkingMarkers() {
         return offStreetParkingMarkers;
     }
